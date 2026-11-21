@@ -1,393 +1,505 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Eldorado Notifications</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23f5b82e'/%3E%3Cpath d='M16 7a6 6 0 0 0-6 6v4l-2 3v1h16v-1l-2-3v-4a6 6 0 0 0-6-6zm-2.5 15a2.5 2.5 0 0 0 5 0z' fill='%23161309'/%3E%3C/svg%3E">
+<meta name="color-scheme" content="dark light">
+<title>Seller Bot · Live</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%23f5b82e'/%3E%3Cpath d='M16 7a6 6 0 0 0-6 6v4l-2 3v1h16v-1l-2-3v-4a6 6 0 0 0-6-6zm-2.5 15a2.5 2.5 0 0 0 5 0z' fill='%23161309'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script>try { const t = localStorage.getItem('eldo.theme'); if (t) document.documentElement.dataset.theme = t; } catch {}</script>
 <style>
-  :root {
-    --bg: #0b0d12;
-    --bg-2: #11141b;
-    --card: #151922;
-    --card-hi: #1a1f2a;
-    --line: #232a37;
-    --text: #e8ebf1;
-    --muted: #8b94a7;
-    --faint: #5d667a;
-    --gold: #f5b82e;
-    --green: #34d399;
-    --amber: #fbbf24;
-    --blue: #60a5fa;
-    --red: #f87171;
-    --violet: #a78bfa;
-    --radius: 14px;
-    --mono: ui-monospace, "Cascadia Mono", "SF Mono", Consolas, monospace;
+  :root, [data-theme="dark"] {
+    --bg: #0a0b0f; --bg-glow: rgba(245,184,46,.07);
+    --surface: #111318; --surface-2: #161920; --surface-3: #1c2029; --input: #0c0e12;
+    --line: #23272f; --line-2: #2d323c;
+    --text: #eceef2; --text-2: #b4bac6; --muted: #858c9a; --faint: #5a616e;
+    --gold: #f5b82e; --gold-2: #ffd36b; --on-gold: #1a1405; --gold-soft: rgba(245,184,46,.12);
+    --green: #34d399; --green-soft: rgba(52,211,153,.13);
+    --red: #f87171; --red-soft: rgba(248,113,113,.13);
+    --amber: #fbbf24; --amber-soft: rgba(251,191,36,.13);
+    --blue: #60a5fa; --blue-soft: rgba(96,165,250,.13);
+    --shadow: 0 1px 0 rgba(255,255,255,.03) inset, 0 8px 24px -12px rgba(0,0,0,.6);
   }
+  [data-theme="light"] {
+    --bg: #f5f6f8; --bg-glow: rgba(245,184,46,.10);
+    --surface: #ffffff; --surface-2: #f9fafb; --surface-3: #f1f3f6; --input: #ffffff;
+    --line: #e4e7ec; --line-2: #d5dae1;
+    --text: #12151b; --text-2: #3d4452; --muted: #69717f; --faint: #9aa1ad;
+    --gold: #d99a0b; --gold-2: #f5b82e; --on-gold: #1a1405; --gold-soft: rgba(217,154,11,.12);
+    --green: #059669; --green-soft: rgba(5,150,105,.10);
+    --red: #dc2626; --red-soft: rgba(220,38,38,.09);
+    --amber: #b45309; --amber-soft: rgba(180,83,9,.10);
+    --blue: #2563eb; --blue-soft: rgba(37,99,235,.09);
+    --shadow: 0 1px 2px rgba(16,24,40,.05), 0 8px 24px -16px rgba(16,24,40,.18);
+  }
+  :root { --r: 12px; --r-sm: 8px; --mono: ui-monospace, "Cascadia Mono", "SF Mono", Consolas, monospace; }
   * { box-sizing: border-box; }
   html, body { margin: 0; }
   body {
-    background: radial-gradient(1200px 600px at 10% -10%, #1b1a12 0%, transparent 60%), var(--bg);
-    color: var(--text);
-    font: 14px/1.45 "Segoe UI Variable", "Segoe UI", Inter, system-ui, -apple-system, sans-serif;
-    min-height: 100vh;
-    -webkit-font-smoothing: antialiased;
+    background: radial-gradient(1100px 520px at 0% -10%, var(--bg-glow), transparent 60%), var(--bg);
+    color: var(--text); min-height: 100vh;
+    font: 14px/1.5 Inter, "Segoe UI Variable", "Segoe UI", system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased; font-feature-settings: "cv11", "ss01";
   }
-  .wrap { max-width: 920px; margin: 0 auto; padding: 0 16px 64px; }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  :focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+  .num { font-variant-numeric: tabular-nums; }
+  svg.i { width: 16px; height: 16px; flex: none; }
 
-  /* Top bar */
-  header {
-    position: sticky; top: 0; z-index: 10;
-    backdrop-filter: blur(14px);
-    background: color-mix(in srgb, var(--bg) 80%, transparent);
-    border-bottom: 1px solid var(--line);
-  }
-  .bar { max-width: 920px; margin: 0 auto; padding: 14px 16px; display: flex; align-items: center; gap: 12px; }
-  .logo {
-    width: 34px; height: 34px; border-radius: 10px; flex: none;
-    background: linear-gradient(135deg, #ffd36b, var(--gold) 55%, #d9930f);
-    display: grid; place-items: center; box-shadow: 0 6px 20px -6px rgba(245,184,46,.55);
-  }
+  /* top bar */
+  .topbar { position: sticky; top: 0; z-index: 20; backdrop-filter: saturate(1.4) blur(14px); background: color-mix(in srgb, var(--bg) 82%, transparent); border-bottom: 1px solid var(--line); }
+  .topbar .in { max-width: 1240px; margin: 0 auto; padding: 12px 20px; display: flex; align-items: center; gap: 10px; }
+  .brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .logo { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; flex: none; background: linear-gradient(140deg, var(--gold-2), var(--gold)); box-shadow: 0 6px 18px -6px rgba(245,184,46,.55); }
   .logo svg { width: 18px; height: 18px; }
-  h1 { font-size: 16px; font-weight: 650; margin: 0; letter-spacing: .1px; }
-  .sub { color: var(--muted); font-size: 12px; }
-  .spacer { flex: 1; }
-  .pill {
-    display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 999px;
-    border: 1px solid var(--line); background: var(--bg-2); font-size: 12px; font-weight: 600; white-space: nowrap;
-  }
-  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--faint); position: relative; }
+  .brand h1 { font-size: 15px; font-weight: 650; margin: 0; letter-spacing: -.01em; white-space: nowrap; }
+  .brand .sub { font-size: 12px; color: var(--muted); white-space: nowrap; }
+  .grow { flex: 1; }
+  .pill { display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); font-size: 12.5px; font-weight: 600; white-space: nowrap; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--faint); position: relative; flex: none; }
   .pill.live .dot { background: var(--green); }
-  .pill.live .dot::after {
-    content: ""; position: absolute; inset: -4px; border-radius: 50%; border: 2px solid var(--green);
-    animation: ping 1.6s cubic-bezier(0,0,.2,1) infinite;
-  }
-  .pill.retrying .dot { background: var(--amber); }
-  .pill.offline .dot { background: var(--red); }
-  @keyframes ping { 0% { transform: scale(.6); opacity: .9; } 100% { transform: scale(1.8); opacity: 0; } }
-  .iconbtn {
-    width: 34px; height: 34px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg-2);
-    color: var(--muted); display: grid; place-items: center; cursor: pointer; transition: .15s;
-  }
-  .iconbtn:hover { color: var(--text); border-color: #334; }
-  .iconbtn.on { color: var(--gold); border-color: rgba(245,184,46,.45); background: rgba(245,184,46,.08); }
-  .iconbtn svg { width: 17px; height: 17px; }
+  .pill.live .dot::after { content: ""; position: absolute; inset: -4px; border-radius: 50%; border: 2px solid var(--green); animation: ping 1.8s cubic-bezier(0,0,.2,1) infinite; }
+  .pill.retrying .dot { background: var(--amber); } .pill.offline .dot { background: var(--red); }
+  @keyframes ping { from { transform: scale(.6); opacity: .9; } to { transform: scale(1.9); opacity: 0; } }
+  .iconbtn { width: 34px; height: 34px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--muted); display: grid; place-items: center; cursor: pointer; transition: .15s; flex: none; }
+  .iconbtn:hover { color: var(--text); border-color: var(--line-2); }
+  .iconbtn.on { color: var(--gold); border-color: color-mix(in srgb, var(--gold) 45%, transparent); background: var(--gold-soft); }
 
-  /* Stats */
-  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 20px 0 8px; }
-  .stat { background: var(--bg-2); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
-  .stat .k { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .6px; font-weight: 600; }
-  .stat .v { font-size: 20px; font-weight: 650; margin-top: 2px; font-variant-numeric: tabular-nums; }
-  .stat .v small { font-size: 12px; color: var(--muted); font-weight: 500; margin-left: 2px; }
-  .statusline { color: var(--faint); font-size: 12px; margin: 6px 2px 18px; min-height: 18px; font-variant-numeric: tabular-nums; }
+  .wrap { max-width: 1240px; margin: 0 auto; padding: 20px 20px 96px; }
+
+  /* KPIs */
+  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .kpi { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 14px 16px; box-shadow: var(--shadow); }
+  .kpi .k { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; font-weight: 500; }
+  .kpi .v { font-size: 24px; font-weight: 650; letter-spacing: -.02em; margin-top: 4px; line-height: 1.15; }
+  .kpi .v small { font-size: 13px; font-weight: 500; color: var(--muted); margin-left: 3px; letter-spacing: 0; }
+  .kpi .v .bad { color: var(--red); font-size: 13px; font-weight: 600; margin-left: 6px; }
+  .statusline { color: var(--faint); font-size: 12px; margin: 10px 2px 18px; min-height: 18px; }
   .statusline.warn { color: var(--amber); }
 
-  /* Feed */
-  .section { display: flex; align-items: center; gap: 10px; margin: 22px 2px 10px; color: var(--muted); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .7px; }
-  .section::after { content: ""; flex: 1; height: 1px; background: var(--line); }
-  .count { background: var(--bg-2); border: 1px solid var(--line); border-radius: 999px; padding: 1px 8px; font-size: 11px; color: var(--muted); }
-  .feed { display: flex; flex-direction: column; gap: 10px; }
+  /* layout */
+  .layout { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+  .mtabs { display: none; }
+  .panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); box-shadow: var(--shadow); }
+  .panel-h { display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--line); }
+  .panel-h h2 { font-size: 14px; font-weight: 650; margin: 0; }
+  .count { font-size: 11.5px; font-weight: 600; color: var(--muted); background: var(--surface-3); border-radius: 999px; padding: 1px 8px; }
 
-  .card {
-    position: relative; display: grid; grid-template-columns: 44px 1fr auto; gap: 14px; align-items: start;
-    background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px 14px 14px;
-    overflow: hidden;
-  }
-  .card::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--accent, var(--faint)); }
-  .card.old { opacity: .62; }
-  .card.old:hover { opacity: 1; }
-  .card.fresh { animation: arrive .7s cubic-bezier(.2,.9,.3,1.2), glow 2.6s ease-out; border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); }
-  @keyframes arrive { from { transform: translateY(-14px) scale(.98); opacity: 0; } to { transform: none; opacity: 1; } }
-  @keyframes glow { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 60%, transparent), 0 0 40px -6px var(--accent); } 100% { box-shadow: 0 0 0 0 transparent; } }
-
-  .ico {
-    width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; font-size: 20px;
-    background: color-mix(in srgb, var(--accent, var(--faint)) 14%, transparent);
-    border: 1px solid color-mix(in srgb, var(--accent, var(--faint)) 30%, transparent);
-  }
-  .title { font-weight: 650; font-size: 15px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-  .badge { font-size: 10.5px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; padding: 2px 7px; border-radius: 6px; color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); }
-  .offer { font-size: 10.5px; font-weight: 800; letter-spacing: .4px; padding: 2px 8px; border-radius: 6px; }
-  .offer.ok { background: rgba(52,211,153,.16); color: var(--green); border: 1px solid rgba(52,211,153,.4); }
-  .offer.bad { background: rgba(248,113,113,.14); color: var(--red); border: 1px solid rgba(248,113,113,.4); }
-  .offer.pending { background: rgba(245,184,46,.12); color: var(--gold); border: 1px solid rgba(245,184,46,.35); }
-  .newtag { font-size: 10.5px; font-weight: 800; letter-spacing: .6px; padding: 2px 7px; border-radius: 6px; background: var(--gold); color: #1a1405; }
-  .desc { color: #c9cfdb; margin-top: 3px; word-break: break-word; }
+  /* feed */
+  .filters { display: flex; gap: 6px; overflow-x: auto; padding: 12px 16px; border-bottom: 1px solid var(--line); scrollbar-width: none; }
+  .filters::-webkit-scrollbar { display: none; }
+  .chip { flex: none; display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 11px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface-2); color: var(--text-2); font-size: 12.5px; font-weight: 500; cursor: pointer; white-space: nowrap; transition: .15s; }
+  .chip:hover { border-color: var(--line-2); color: var(--text); }
+  .chip[aria-pressed="true"] { background: var(--text); color: var(--bg); border-color: var(--text); }
+  .chip .n { font-size: 11px; opacity: .7; }
+  .toggle-sm { display: inline-flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--muted); cursor: pointer; user-select: none; white-space: nowrap; }
+  .group-h { display: flex; align-items: center; gap: 8px; padding: 14px 16px 8px; color: var(--muted); font-size: 11.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+  .feed { display: flex; flex-direction: column; gap: 8px; padding: 0 12px 12px; }
+  .card { position: relative; display: grid; grid-template-columns: 38px minmax(0, 1fr) auto; gap: 12px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2); transition: border-color .2s; }
+  .card:hover { border-color: var(--line-2); }
+  .card.old { opacity: .66; } .card.old:hover { opacity: 1; }
+  .card.fresh { animation: slide .35s cubic-bezier(.2,.8,.2,1), glow 2.2s ease-out; }
+  @keyframes slide { from { transform: translateY(-8px); opacity: 0; } to { transform: none; opacity: 1; } }
+  @keyframes glow { 0% { box-shadow: 0 0 0 1px var(--accent), 0 0 28px -4px var(--accent); } 100% { box-shadow: none; } }
+  .ico { width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center; color: var(--accent); background: color-mix(in srgb, var(--accent) 13%, transparent); }
+  .ico svg { width: 18px; height: 18px; }
+  .t { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; font-weight: 600; font-size: 14px; }
+  .tag { font-size: 10.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; padding: 2px 7px; border-radius: 6px; }
+  .tag.new { background: var(--gold); color: var(--on-gold); }
+  .tag.sent { background: var(--green-soft); color: var(--green); }
+  .tag.fail { background: var(--red-soft); color: var(--red); cursor: help; }
+  .meta { color: var(--text-2); font-size: 13px; margin-top: 2px; word-break: break-word; }
+  .meta b { color: var(--text); font-weight: 600; }
   .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
-  .chip { font-size: 12px; color: var(--muted); background: var(--bg-2); border: 1px solid var(--line); border-radius: 7px; padding: 2px 8px; }
-  .chip b { color: var(--text); font-weight: 600; }
-  .chip.price b { color: var(--green); }
+  .mini { font-size: 12px; color: var(--muted); background: var(--surface-3); border-radius: 6px; padding: 2px 8px; }
+  .mini b { color: var(--text-2); font-weight: 600; }
   .when { text-align: right; white-space: nowrap; }
-  .ago { font-weight: 600; font-size: 13px; font-variant-numeric: tabular-nums; }
-  .abs { color: var(--faint); font-size: 11.5px; margin-top: 2px; font-variant-numeric: tabular-nums; }
-  .timing { grid-column: 2 / -1; display: flex; flex-wrap: wrap; gap: 14px; color: var(--faint); font-size: 11.5px; font-family: var(--mono); margin-top: -4px; }
-  .timing span b { color: var(--muted); font-weight: 500; }
-  details { grid-column: 2 / -1; margin-top: -4px; }
-  summary { cursor: pointer; color: var(--faint); font-size: 12px; user-select: none; list-style: none; }
-  summary::-webkit-details-marker { display: none; }
-  summary:hover { color: var(--muted); }
-  details[open] summary { color: var(--muted); }
-  pre {
-    margin: 8px 0 0; background: #0a0c10; border: 1px solid var(--line); border-radius: 10px; padding: 12px;
-    font: 12px/1.5 var(--mono); color: #b8c1d3; overflow: auto; max-height: 360px;
-  }
-  a.open { color: var(--gold); text-decoration: none; font-size: 12px; font-weight: 600; }
-  a.open:hover { text-decoration: underline; }
+  .ago { font-size: 12.5px; font-weight: 600; color: var(--text-2); }
+  .abs { font-size: 11.5px; color: var(--faint); margin-top: 2px; }
+  .foot { grid-column: 2 / -1; display: flex; flex-wrap: wrap; gap: 14px; align-items: center; font-size: 12px; color: var(--faint); }
+  .foot a { color: var(--gold); text-decoration: none; font-weight: 600; }
+  .foot a:hover { text-decoration: underline; }
+  details summary { cursor: pointer; list-style: none; color: var(--faint); }
+  details summary::-webkit-details-marker { display: none; }
+  details summary:hover { color: var(--muted); }
+  details pre { margin: 8px 0 0; background: var(--input); border: 1px solid var(--line); border-radius: 8px; padding: 10px; font: 11.5px/1.5 var(--mono); color: var(--text-2); overflow: auto; max-height: 320px; }
+  .empty { text-align: center; color: var(--muted); padding: 36px 16px; margin: 0 12px 12px; border: 1px dashed var(--line-2); border-radius: 10px; }
+  .empty .big { width: 40px; height: 40px; margin: 0 auto 10px; border-radius: 12px; display: grid; place-items: center; background: var(--surface-3); color: var(--gold); }
+  .newpill { position: fixed; left: 50%; top: 72px; transform: translateX(-50%); z-index: 30; display: none; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 999px; border: 0; background: var(--gold); color: var(--on-gold); font-weight: 650; font-size: 13px; cursor: pointer; box-shadow: 0 10px 30px -10px rgba(0,0,0,.6); }
 
-  .composer { background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; margin-bottom: 6px; }
-  .composer .head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
-  .composer .head b { font-size: 13px; }
-  .composer .head span { color: var(--faint); font-size: 12px; }
-  .composer textarea {
-    width: 100%; min-height: 70px; resize: vertical; background: #0a0c10; color: var(--text);
-    border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; font: inherit; line-height: 1.45; outline: none;
-  }
-  .composer textarea:focus { border-color: rgba(245,184,46,.55); box-shadow: 0 0 0 3px rgba(245,184,46,.12); }
-  .composer .row { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
-  .composer .hint { color: var(--faint); font-size: 12px; flex: 1; }
-  .btn {
-    border: 1px solid var(--line); background: var(--card-hi); color: var(--text); border-radius: 9px;
-    padding: 7px 14px; font: 600 13px/1 inherit; cursor: pointer; transition: .15s; white-space: nowrap;
-  }
-  .btn:hover { border-color: #3a4456; }
-  .btn.gold { background: linear-gradient(135deg, #ffd36b, var(--gold)); color: #1a1405; border-color: transparent; }
-  .btn.gold:hover { filter: brightness(1.06); }
-  .btn:disabled { opacity: .55; cursor: default; }
-  .btn.done { background: rgba(52,211,153,.14); color: var(--green); border-color: rgba(52,211,153,.4); }
-  .btn.err { background: rgba(248,113,113,.12); color: var(--red); border-color: rgba(248,113,113,.4); }
-  .saved { color: var(--green); font-size: 12px; font-weight: 600; opacity: 0; transition: opacity .3s; }
-  .saved.show { opacity: 1; }
-  .grid { display: grid; grid-template-columns: 1.1fr .9fr .8fr .8fr 1.2fr; gap: 10px; margin-bottom: 10px; }
-  .field { display: flex; flex-direction: column; gap: 4px; }
-  .field > span { color: var(--muted); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; }
-  .field input, .field select {
-    background: #0a0c10; color: var(--text); border: 1px solid var(--line); border-radius: 9px;
-    padding: 8px 10px; font: inherit; outline: none; min-width: 0; width: 100%;
-  }
-  .field input:focus, .field select:focus { border-color: rgba(245,184,46,.55); box-shadow: 0 0 0 3px rgba(245,184,46,.12); }
-  .field.bad input, .field.bad select, .field.bad textarea { border-color: var(--red); }
-  .composer .hint.err { color: var(--red); }
-  .switch { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; user-select: none; }
-  .switch input { position: absolute; opacity: 0; pointer-events: none; }
-  .switch .track { width: 42px; height: 24px; border-radius: 999px; background: #2a3140; position: relative; transition: .2s; border: 1px solid var(--line); }
-  .switch .knob { position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 50%; background: #9aa3b5; transition: .2s; }
-  .switch input:checked + .track { background: rgba(52,211,153,.25); border-color: rgba(52,211,153,.6); }
-  .switch input:checked + .track .knob { left: 20px; background: var(--green); }
-  .switch input:focus-visible + .track { box-shadow: 0 0 0 3px rgba(245,184,46,.25); }
-  .switchLabel { font-size: 12px; font-weight: 800; letter-spacing: .5px; color: var(--muted); min-width: 26px; }
-  .switchLabel.on { color: var(--green); }
-  .composer.live { border-color: rgba(52,211,153,.35); }
-  #offerPanels { display: flex; flex-direction: column; gap: 10px; margin-bottom: 6px; }
-  #offerPanels .composer { margin-bottom: 0; }
-  .field .cc { font-style: normal; font-weight: 600; text-transform: none; letter-spacing: 0; color: var(--faint); margin-left: 6px; }
-  .field .cc.over { color: var(--red); }
-  @media (max-width: 640px) { .grid { grid-template-columns: 1fr 1fr; } }
+  /* offers */
+  .offers { position: sticky; top: 74px; }
+  .orow { border-bottom: 1px solid var(--line); }
+  .orow:last-child { border-bottom: 0; }
+  .ohead { display: flex; align-items: center; gap: 12px; padding: 12px 16px; cursor: pointer; }
+  .ohead:hover { background: var(--surface-2); }
+  .ohead .nm { font-weight: 600; font-size: 13.5px; }
+  .ohead .sm { color: var(--muted); font-size: 12.5px; margin-top: 1px; }
+  .ohead .chev { color: var(--faint); transition: transform .2s; }
+  .orow.open .ohead .chev { transform: rotate(180deg); }
+  .orow.open .ohead { background: var(--surface-2); }
+  .sdot { width: 8px; height: 8px; border-radius: 50%; background: var(--faint); flex: none; }
+  .orow.on .sdot { background: var(--green); box-shadow: 0 0 0 3px var(--green-soft); }
+  .oedit { display: none; padding: 4px 16px 16px; background: var(--surface-2); }
+  .orow.open .oedit { display: block; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .f { display: flex; flex-direction: column; gap: 5px; margin-top: 10px; }
+  .f > span { color: var(--muted); font-size: 12px; font-weight: 500; display: flex; justify-content: space-between; }
+  .f input, .f select, .f textarea { width: 100%; min-width: 0; background: var(--input); border: 1px solid var(--line); border-radius: var(--r-sm); padding: 9px 11px; outline: none; transition: border-color .15s, box-shadow .15s; }
+  .f textarea { min-height: 120px; resize: vertical; line-height: 1.45; }
+  .f input:focus, .f select:focus, .f textarea:focus { border-color: color-mix(in srgb, var(--gold) 60%, transparent); box-shadow: 0 0 0 3px var(--gold-soft); }
+  .pricebox { display: grid; grid-template-columns: 1fr 92px; gap: 6px; }
+  .cc { font-variant-numeric: tabular-nums; color: var(--faint); font-weight: 600; }
+  .cc.warn { color: var(--amber); } .cc.over { color: var(--red); }
+  .orow-foot { display: flex; align-items: center; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
+  .hint { flex: 1; font-size: 12px; color: var(--muted); min-width: 160px; }
+  .hint.err { color: var(--red); } .hint.dirty { color: var(--amber); }
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 36px; padding: 0 14px; border-radius: 9px; border: 1px solid var(--line-2); background: var(--surface-3); color: var(--text); font-weight: 600; font-size: 13px; cursor: pointer; white-space: nowrap; transition: .15s; }
+  .btn:hover { border-color: var(--faint); }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+  .btn.gold { background: linear-gradient(140deg, var(--gold-2), var(--gold)); color: var(--on-gold); border-color: transparent; }
+  .btn.gold:hover { filter: brightness(1.05); }
+  .note { padding: 12px 16px; color: var(--muted); font-size: 12.5px; border-top: 1px solid var(--line); display: flex; gap: 8px; }
 
-  .empty { text-align: center; color: var(--muted); padding: 48px 16px; border: 1px dashed var(--line); border-radius: var(--radius); }
-  .empty .big { font-size: 28px; margin-bottom: 6px; }
+  /* switch */
+  .switch { position: relative; display: inline-flex; flex: none; cursor: pointer; }
+  .switch input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+  .switch .track { width: 40px; height: 23px; border-radius: 999px; background: var(--line-2); transition: .2s; position: relative; }
+  .switch .knob { position: absolute; top: 2px; left: 2px; width: 19px; height: 19px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.35); transition: .2s; }
+  .switch input:checked + .track { background: var(--green); }
+  .switch input:checked + .track .knob { left: 19px; }
+  .switch input:focus-visible + .track { outline: 2px solid var(--gold); outline-offset: 2px; }
 
+  /* dialog + toasts */
+  dialog { border: 1px solid var(--line); background: var(--surface); color: var(--text); border-radius: 14px; padding: 0; width: min(440px, calc(100vw - 32px)); box-shadow: 0 24px 60px -20px rgba(0,0,0,.7); }
+  dialog::backdrop { background: rgba(5,6,9,.6); backdrop-filter: blur(2px); }
+  .dlg { padding: 20px; }
+  .dlg h3 { margin: 0 0 6px; font-size: 16px; }
+  .dlg p { margin: 0; color: var(--text-2); font-size: 13.5px; white-space: pre-line; }
+  .dlg .sum { margin-top: 12px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; font-size: 13px; color: var(--text-2); white-space: pre-line; max-height: 200px; overflow: auto; }
+  .dlg .acts { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+  .toasts { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); z-index: 60; display: flex; flex-direction: column; gap: 8px; align-items: center; pointer-events: none; }
+  .toast { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-radius: 10px; background: var(--surface-3); border: 1px solid var(--line-2); font-size: 13px; font-weight: 600; box-shadow: 0 12px 30px -12px rgba(0,0,0,.6); animation: slide .25s ease-out; }
+  .toast.ok svg { color: var(--green); } .toast.bad svg { color: var(--red); }
+
+  @media (max-width: 960px) {
+    .layout { grid-template-columns: minmax(0, 1fr); }
+    .mtabs { display: flex; gap: 4px; padding: 4px; margin-bottom: 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 11px; }
+    .mtabs button { flex: 1; height: 36px; border: 0; border-radius: 8px; background: transparent; color: var(--muted); font-weight: 600; cursor: pointer; }
+    .mtabs button[aria-selected="true"] { background: var(--surface-3); color: var(--text); }
+    body:not(.tab-offers) .offercol { display: none; }
+    body.tab-offers .feedcol { display: none; }
+    .offers { position: static; }
+  }
   @media (max-width: 640px) {
-    .stats { grid-template-columns: repeat(2, 1fr); }
-    .card { grid-template-columns: 38px 1fr; }
-    .ico { width: 38px; height: 38px; font-size: 18px; }
+    .topbar .in, .wrap { padding-left: 14px; padding-right: 14px; }
+    .brand .sub { display: none; }
+    .kpis { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+    .kpi { padding: 12px; } .kpi .v { font-size: 20px; }
+    .card { grid-template-columns: 34px minmax(0, 1fr); }
+    .ico { width: 34px; height: 34px; }
     .when { grid-column: 2; text-align: left; display: flex; gap: 8px; align-items: baseline; }
-    .sub { display: none; }
+    .pill .txt { display: none; }
+    .grid2 { grid-template-columns: 1fr; }
   }
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
 </style>
 </head>
 <body>
-<header>
-  <div class="bar">
-    <div class="logo"><svg viewBox="0 0 24 24" fill="#161309"><path d="M12 2a7 7 0 0 0-7 7v4.2L3.3 16a1 1 0 0 0 .9 1.5h15.6a1 1 0 0 0 .9-1.5L19 13.2V9a7 7 0 0 0-7-7zm-3 17a3 3 0 0 0 6 0z"/></svg></div>
-    <div>
-      <h1>Eldorado Notifications</h1>
-      <div class="sub">Seller API · live feed</div>
+<header class="topbar">
+  <div class="in">
+    <div class="brand">
+      <div class="logo"><svg viewBox="0 0 24 24" fill="#161309"><path d="M12 2a7 7 0 0 0-7 7v4.2L3.3 16a1 1 0 0 0 .9 1.5h15.6a1 1 0 0 0 .9-1.5L19 13.2V9a7 7 0 0 0-7-7zm-3 17a3 3 0 0 0 6 0z"/></svg></div>
+      <div><h1>Seller Bot</h1><div class="sub">Live Eldorado requests &amp; auto-offers</div></div>
     </div>
-    <div class="spacer"></div>
-    <button class="iconbtn on" id="soundBtn" title="Sound on new notification">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4z"/><path id="soundWaves" d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/></svg>
-    </button>
-    <button class="iconbtn" id="desktopBtn" title="Desktop pop-up alerts">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
-    </button>
-    <div class="pill" id="pill"><span class="dot"></span><span id="pillText">Connecting…</span></div>
+    <div class="grow"></div>
+    <div class="pill" id="pill" title="Connection to your bot"><span class="dot"></span><span class="txt" id="pillText">Connecting…</span></div>
+    <button class="iconbtn on" id="soundBtn" aria-label="Sound on new request" title="Sound on new request"></button>
+    <button class="iconbtn" id="desktopBtn" aria-label="Desktop pop-up alerts" title="Desktop pop-up alerts"></button>
+    <button class="iconbtn" id="themeBtn" aria-label="Switch light / dark" title="Switch light / dark"></button>
   </div>
 </header>
 
 <main class="wrap">
-  <section class="stats">
-    <div class="stat"><div class="k">New this session</div><div class="v" id="sDetected">0</div></div>
-    <div class="stat"><div class="k">Request RTT</div><div class="v"><span id="sRtt">–</span><small>ms</small></div></div>
-    <div class="stat"><div class="k">Offers sent</div><div class="v"><span id="sOffers">0</span><small id="sOffersFail"></small></div></div>
-    <div class="stat"><div class="k">Poll interval</div><div class="v"><span id="sInterval">–</span><small>ms</small></div></div>
+  <section class="kpis" aria-label="Today">
+    <div class="kpi"><div class="k" data-i="bell">New requests</div><div class="v num" id="sDetected">0</div></div>
+    <div class="kpi"><div class="k" data-i="send">Offers sent</div><div class="v num"><span id="sOffers">0</span><span class="bad" id="sOffersFail"></span></div></div>
+    <div class="kpi"><div class="k" data-i="bolt">Response time</div><div class="v num"><span id="sRtt">–</span><small>ms</small></div></div>
+    <div class="kpi"><div class="k" data-i="clock">Last check</div><div class="v num"><span id="sLast">–</span></div></div>
   </section>
-  <div class="statusline" id="statusline">Waiting for the listener…</div>
+  <div class="statusline" id="statusline" role="status">Waiting for your bot…</div>
 
-  <div id="offerPanels"></div>
-  <template id="panelTpl">
-    <section class="composer">
-      <div class="head">
-        <b>⚡ Auto-offer</b><span class="opCategory"></span>
-        <div class="spacer"></div>
-        <span class="saved">Saved ✓</span>
-        <label class="switch" title="Turn auto-offer on/off for this category">
-          <input type="checkbox" class="opEnabled"><span class="track"><span class="knob"></span></span>
-          <span class="switchLabel">OFF</span>
-        </label>
+  <nav class="mtabs" role="tablist" aria-label="View">
+    <button role="tab" id="tabFeed" aria-selected="true">Live feed</button>
+    <button role="tab" id="tabOffers" aria-selected="false">Auto-offers <span id="tabOnCount"></span></button>
+  </nav>
+
+  <div class="layout">
+    <section class="panel feedcol" aria-label="Live feed">
+      <div class="panel-h">
+        <h2>Live feed</h2><span class="count num" id="feedCount">0</span>
+        <div class="grow"></div>
+        <label class="toggle-sm"><span class="switch"><input type="checkbox" id="onlyBoost"><span class="track"><span class="knob"></span></span></span>Requests only</label>
       </div>
-      <div class="grid">
-        <label class="field"><span>Price</span><input class="opPrice" type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="20"></label>
-        <label class="field"><span>Currency</span><select class="opCurrency"></select></label>
-        <label class="field"><span>Quantity</span><input class="opQty" type="number" min="1" step="1" inputmode="numeric"></label>
-        <label class="field"><span>Min quantity</span><input class="opMinQty" type="number" min="1" step="1" inputmode="numeric"></label>
-        <label class="field"><span>Delivery time</span><select class="opDelivery"></select></label>
-      </div>
-      <label class="field"><span>Message to the buyer <em class="cc"></em></span><textarea class="opMessage" placeholder="Hey! I can do this right now…"></textarea></label>
-      <div class="row">
-        <div class="hint">Sent automatically, once per buyer, about 1 second after a new request appears.</div>
-        <button class="btn gold opSave">Save settings</button>
-      </div>
+      <div class="filters" id="filters" role="toolbar" aria-label="Filter by category"></div>
+      <div class="group-h">Live now <span class="count num" id="liveCount">0</span></div>
+      <div class="feed" id="liveFeed" aria-live="polite"></div>
+      <div class="empty" id="liveEmpty"><div class="big" data-i="eye"></div>Watching Eldorado every second.<br>New buyer requests appear here the moment they arrive.</div>
+      <div id="earlier"><div class="group-h">Earlier <span class="count num" id="oldCount">0</span></div><div class="feed" id="oldFeed"></div></div>
     </section>
-  </template>
 
-  <div class="section">Live <span class="count" id="liveCount">0</span></div>
-  <div class="feed" id="liveFeed">
-    <div class="empty" id="liveEmpty"><div class="big">👀</div>Watching for new notifications. They'll show up here the moment they're detected.</div>
+    <aside class="offercol">
+      <section class="panel offers" aria-label="Auto-offers">
+        <div class="panel-h"><span data-i="bolt" style="color:var(--gold);display:flex"></span><h2>Auto-offers</h2><span class="count num" id="onCount">0 ON</span></div>
+        <div id="offerList"><div class="empty" style="margin:12px">Loading your settings…</div></div>
+        <div class="note"><span data-i="info" style="display:flex;color:var(--faint)"></span><span>Every new buyer request in a category that is <b>ON</b> gets your offer once, about 1 second after it appears.</span></div>
+      </section>
+    </aside>
   </div>
-
-  <div class="section" id="earlierHead">Earlier <span class="count" id="oldCount">0</span></div>
-  <div class="feed" id="oldFeed"></div>
 </main>
+
+<button class="newpill" id="newPill"></button>
+<div class="toasts" id="toasts" aria-live="polite"></div>
+
+<dialog id="confirmDlg"><form method="dialog" class="dlg">
+  <h3 id="cdTitle"></h3><p id="cdText"></p><div class="sum" id="cdSum"></div>
+  <div class="acts"><button class="btn" value="no">Cancel</button><button class="btn gold" value="yes" id="cdYes">Turn ON</button></div>
+</form></dialog>
 
 <script>
 (() => {
   const $ = (id) => document.getElementById(id);
-  const TYPE_COLOR = { Success: 'var(--green)', ActionRequired: 'var(--amber)', Attention: 'var(--blue)', Error: 'var(--red)', Unknown: 'var(--violet)' };
-  const TYPE_LABEL = { Success: 'Success', ActionRequired: 'Action required', Attention: 'Attention', Error: 'Error', Unknown: 'Info' };
+  const ICONS = {
+    bell: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
+    send: '<path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/>',
+    bolt: '<path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/>',
+    clock: '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
+    eye: '<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>',
+    info: '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>',
+    sound: '<path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/>',
+    mute: '<path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="m22 9-6 6M16 9l6 6"/>',
+    monitor: '<rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/>',
+    sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+    moon: '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>',
+    chev: '<path d="m6 9 6 6 6-6"/>',
+    check: '<path d="M20 6 9 17l-5-5"/>',
+    x: '<path d="M18 6 6 18M6 6l12 12"/>',
+    cart: '<circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2 2h3l2.7 12.4a2 2 0 0 0 2 1.6h8.7a2 2 0 0 0 2-1.6L22 6H6"/>',
+    alert: '<path d="m21.7 18-8-14a2 2 0 0 0-3.4 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3Z"/><path d="M12 9v4M12 17h.01"/>',
+    msg: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
+    star: '<path d="m12 2 3.1 6.3 6.9 1-5 4.9 1.2 6.8-6.2-3.2L5.8 21 7 14.2 2 9.3l6.9-1L12 2z"/>',
+    shield: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/>',
+    gift: '<rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"/><path d="M7.5 8a2.5 2.5 0 0 1 0-5C11 3 12 8 12 8s1-5 4.5-5a2.5 2.5 0 0 1 0 5"/>',
+    refresh: '<path d="M3 12a9 9 0 0 1 15-6.7L21 8M21 3v5h-5M21 12a9 9 0 0 1-15 6.7L3 16M3 21v-5h5"/>',
+    up: '<path d="m18 15-6-6-6 6"/>',
+  };
+  const icon = (name) => `<svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name] || ICONS.bell}</svg>`;
+  document.querySelectorAll('[data-i]').forEach((e) => e.insertAdjacentHTML('afterbegin', icon(e.dataset.i)));
 
-  const state = { seen: new Set(), unseenWhileHidden: 0, sound: true, desktop: false, stats: null, panel: null };
+  const TYPE_COLOR = { Success: 'var(--green)', ActionRequired: 'var(--amber)', Attention: 'var(--blue)', Error: 'var(--red)', Unknown: 'var(--gold)' };
+  const TYPE_LABEL = { Success: 'Success', ActionRequired: 'Action needed', Attention: 'Info', Error: 'Error', Unknown: 'Info' };
+  const MAX_FEED = 200;
+
+  const state = { entries: [], seen: new Set(), filter: 'all', onlyBoost: false, unseenWhileHidden: 0, newBelow: 0, sound: true, desktop: false, stats: null, panel: null };
   try {
     state.sound = localStorage.getItem('eldo.sound') !== '0';
     state.desktop = localStorage.getItem('eldo.desktop') === '1' && 'Notification' in window && Notification.permission === 'granted';
+    state.filter = localStorage.getItem('eldo.filter') || 'all';
+    state.onlyBoost = localStorage.getItem('eldo.onlyBoost') === '1';
   } catch {}
+  const store = (k, v) => { try { localStorage.setItem(k, v); } catch {} };
 
+  function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+  function toast(text, ok = true) {
+    const t = el('div', 'toast ' + (ok ? 'ok' : 'bad'));
+    t.insertAdjacentHTML('afterbegin', icon(ok ? 'check' : 'alert'));
+    t.append(el('span', null, text));
+    $('toasts').append(t);
+    setTimeout(() => t.remove(), 2800);
+  }
+
+  // ---- notification helpers
   function iconFor(ev) {
     ev = ev || '';
-    if (/^Swap/.test(ev)) return '🔁';
-    if (/Dispute/.test(ev)) return '⚠️';
-    if (/Cancel/.test(ev)) return '✖️';
-    if (/OrderCreated|ItemBought|PaymentCompleted/.test(ev)) return '🛒';
-    if (/Delivered|Received|Completed/.test(ev)) return '✅';
-    if (/Boosting/.test(ev)) return '⚡';
-    if (/Review/.test(ev)) return '⭐';
-    if (/Conversation|Contacted|Chat|Nudge/.test(ev)) return '💬';
-    if (/Warranty/.test(ev)) return '🛡️';
-    if (/Verification|Suspended/.test(ev)) return '🪪';
-    if (/Delivery|Reminder|Extended/.test(ev)) return '⏰';
-    if (/Loyalty|Cashback|Birthday/.test(ev)) return '🎁';
-    if (/Fee/.test(ev)) return '💸';
-    return '🔔';
+    if (/Boosting/.test(ev)) return 'bolt';
+    if (/OrderCreated|ItemBought|PaymentCompleted/.test(ev)) return 'cart';
+    if (/Dispute|Cancel|Suspended/.test(ev)) return 'alert';
+    if (/Delivered|Received|Completed/.test(ev)) return 'check';
+    if (/Review/.test(ev)) return 'star';
+    if (/Conversation|Contacted|Chat|Nudge/.test(ev)) return 'msg';
+    if (/Warranty|Verification/.test(ev)) return 'shield';
+    if (/Loyalty|Cashback|Birthday/.test(ev)) return 'gift';
+    if (/Delivery|Reminder|Extended/.test(ev)) return 'clock';
+    return 'bell';
   }
-  const human = (s) => (s || 'Notification').replace(/([a-z0-9])([A-Z])/g, '$1 $2').replace(/Min(\d+)/, '$1 min').replace(/Hour(\d+)/, '$1 h');
+  const human = (s) => (s || 'Notification').replace(/([a-z0-9])([A-Z])/g, '$1 $2');
   const pad = (n, w = 2) => String(n).padStart(w, '0');
-  const stamp = (ms) => { const d = new Date(ms); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}.${pad(d.getMilliseconds(),3)}`; };
-  const parseDate = (s) => { if (!s) return NaN; return Date.parse(String(s).replace(/(\.\d{3})\d+/, '$1')); };
+  const stamp = (ms) => { const d = new Date(ms); return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}.${pad(d.getMilliseconds(), 3)}`; };
+  const parseDate = (s) => (s ? Date.parse(String(s).replace(/(\.\d{3})\d+/, '$1')) : NaN);
   function ago(ms) {
     const s = Math.max(0, Math.round((Date.now() - ms) / 1000));
-    if (s < 5) return 'just now';
-    if (s < 60) return s + 's ago';
+    if (s < 5) return 'just now'; if (s < 60) return s + 's ago';
     const m = Math.floor(s / 60); if (m < 60) return m + 'm ago';
     const h = Math.floor(m / 60); if (h < 24) return h + 'h ago';
     return Math.floor(h / 24) + 'd ago';
   }
-  const fmtMs = (ms) => ms == null ? '–' : ms < 1000 ? Math.round(ms) + 'ms' : (ms / 1000).toFixed(ms < 10000 ? 2 : 1) + 's';
-
-  function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
-  function chip(label, value, cls) { const c = el('span', 'chip' + (cls ? ' ' + cls : '')); c.append(label + ' '); c.append(el('b', null, value)); return c; }
+  const fmtMs = (ms) => (ms == null ? '–' : ms < 1000 ? Math.round(ms) + ' ms' : (ms / 1000).toFixed(1) + ' s');
 
   function view(entry) {
     const n = entry.item.notification || null;
     const c = entry.item.customNotification || null;
     const src = n || c || {};
-    const type = src.type || 'Unknown';
-    const date = parseDate(src.notificationDate);
-    const title = n ? human(n.event) : (c && c.subject) || 'Notification';
-    let desc = '';
-    const chips = [];
+    const v = { type: src.type || 'Unknown', date: parseDate(src.notificationDate), title: n ? human(n.event) : (c && c.subject) || 'Notification', event: n ? n.event : '', category: '', buyer: '', price: '', fields: [], desc: '', link: null };
     if (n && n.details) {
       const d = n.details;
-      if (d.gameCategoryTitle) desc = d.gameCategoryTitle;
-      if (d.title) desc = desc ? `${d.title} · ${desc}` : d.title;
-      if (d.buyerUsername) chips.push(['Buyer', d.buyerUsername]);
-      if (d.price && Number(d.price.amount) > 0) chips.push(['Price', `${Number(d.price.amount).toFixed(2)} ${d.price.currency || ''}`.trim(), 'price']);
-      if (n.recipientRole && n.recipientRole !== 'None') chips.push(['As', n.recipientRole]);
+      v.category = (d.gameCategoryTitle || '').replace(/^🔥\s*/, '🔥 ');
+      if (d.title) v.desc = d.title;
+      if (d.buyerUsername) v.buyer = d.buyerUsername;
+      if (d.price && Number(d.price.amount) > 0) v.price = `${Number(d.price.amount).toFixed(2)} ${d.price.currency || ''}`.trim();
       const cd = n.customNotificationData;
-      if (cd && Array.isArray(cd.requestFields) && cd.requestFields.length) chips.push(['Request', cd.requestFields.join(' · ')]);
+      if (cd && Array.isArray(cd.requestFields)) v.fields = cd.requestFields.filter(Boolean).map(String);
     }
-    if (c && c.text) desc = c.text;
-    const read = (n && n.notificationReadStatus) || (c && c.readStatus);
-    if (read === 'IsUnread') chips.push(['', 'Unread']);
+    if (c && c.text) v.desc = c.text;
     let link = c && c.redirectUrl;
     if (link && link.startsWith('/')) link = 'https://www.eldorado.gg' + link;
-    if (link && !/^https:\/\//.test(link)) link = null;
-    return { type, date, title, desc, chips, link };
+    if (link && /^https:\/\//.test(link)) v.link = link;
+    return v;
+  }
+  const catOf = (entry) => view(entry).category || 'Other';
+  const isBoost = (entry) => /Boosting/.test(view(entry).event);
+  const visible = (entry) => (state.filter === 'all' || catOf(entry) === state.filter) && (!state.onlyBoost || isBoost(entry));
+
+  function offerTag(o) {
+    const t = el('span', 'tag ' + (o.ok ? 'sent' : 'fail'), o.ok ? 'Offer sent ✓' : 'Offer failed');
+    if (!o.ok) t.title = o.error ? String(o.error) : `HTTP ${o.status || 'network'}`;
+    return t;
   }
 
   function card(entry, fresh) {
     const v = view(entry);
-    const accent = TYPE_COLOR[v.type] || TYPE_COLOR.Unknown;
     const root = el('article', 'card' + (entry.live ? '' : ' old') + (fresh ? ' fresh' : ''));
-    root.style.setProperty('--accent', accent);
+    root.style.setProperty('--accent', TYPE_COLOR[v.type] || TYPE_COLOR.Unknown);
+    root.dataset.id = entry.id;
     root.dataset.date = isNaN(v.date) ? '' : String(v.date);
-
-    root.append(el('div', 'ico', iconFor(entry.item.notification && entry.item.notification.event)));
+    const ic = el('div', 'ico'); ic.innerHTML = icon(iconFor(v.event)); root.append(ic);
 
     const body = el('div');
-    const t = el('div', 'title');
+    const t = el('div', 't');
     t.append(el('span', null, v.title));
-    t.append(el('span', 'badge', TYPE_LABEL[v.type] || v.type));
-    if (entry.live) t.append(el('span', 'newtag', 'NEW'));
-    if (entry.offer) t.append(offerBadge(entry.offer));
+    if (entry.live) t.append(el('span', 'tag new', 'New'));
+    if (entry.offer) t.append(offerTag(entry.offer));
     body.append(t);
-    root.dataset.id = entry.id;
-    if (v.desc) body.append(el('div', 'desc', v.desc));
-    if (v.chips.length || v.link) {
-      const cs = el('div', 'chips');
-      for (const [k, val, cls] of v.chips) cs.append(k ? chip(k, val, cls) : el('span', 'chip', val));
-      if (v.link) { const a = el('a', 'open', 'Open on Eldorado ↗'); a.href = v.link; a.target = '_blank'; a.rel = 'noopener noreferrer'; cs.append(a); }
-      body.append(cs);
+    const meta = el('div', 'meta');
+    const parts = [];
+    if (v.category) parts.push(['', v.category]);
+    if (v.buyer) parts.push(['by ', v.buyer]);
+    if (v.desc && v.desc !== v.category) parts.push(['', v.desc]);
+    parts.forEach(([pre, val], i) => { if (i) meta.append(' · '); if (pre) meta.append(pre); meta.append(el('b', null, val)); });
+    if (!parts.length) meta.append(TYPE_LABEL[v.type] || 'Info');
+    body.append(meta);
+    if (v.fields.length || v.price) {
+      const ch = el('div', 'chips');
+      if (v.price) { const m = el('span', 'mini'); m.append('Price '); m.append(el('b', null, v.price)); ch.append(m); }
+      for (const f of v.fields.slice(0, 6)) ch.append(el('span', 'mini', f));
+      body.append(ch);
     }
     root.append(body);
 
     const when = el('div', 'when');
-    when.append(el('div', 'ago', isNaN(v.date) ? '' : ago(v.date)));
-    when.append(el('div', 'abs', isNaN(v.date) ? '' : new Date(v.date).toLocaleString()));
+    when.append(el('div', 'ago num', isNaN(v.date) ? '' : ago(v.date)));
+    when.append(el('div', 'abs num', isNaN(v.date) ? '' : new Date(v.date).toLocaleTimeString()));
     root.append(when);
 
-    if (entry.live) {
-      const tm = el('div', 'timing');
-      const add = (k, val) => { const s = el('span'); s.append(k + ' '); s.append(el('b', null, val)); tm.append(s); };
-      add('detected', stamp(entry.detectedAt));
-      add('rtt', fmtMs(entry.rttMs));
-      if (entry.eventAgeMs != null) add('event age', fmtMs(entry.eventAgeMs));
-      root.append(tm);
-    }
-
+    const foot = el('div', 'foot');
+    if (v.link) { const a = el('a', null, 'Open on Eldorado ↗'); a.href = v.link; a.target = '_blank'; a.rel = 'noopener noreferrer'; foot.append(a); }
+    if (entry.live) foot.append(el('span', 'num', `detected ${stamp(entry.detectedAt)} · ${fmtMs(entry.rttMs)}`));
     const det = el('details');
-    det.append(el('summary', null, 'Full payload · ' + entry.id));
-    det.addEventListener('toggle', () => { if (det.open && !det.querySelector('pre')) det.append(el('pre', null, JSON.stringify(entry.item, null, 2))); }, { once: false });
-    root.append(det);
+    det.append(el('summary', null, 'Raw data'));
+    det.addEventListener('toggle', () => { if (det.open && !det.querySelector('pre')) det.append(el('pre', null, JSON.stringify(entry.item, null, 2))); });
+    foot.append(det);
+    root.append(foot);
     return root;
   }
 
-  // ---- auto-offer settings panel
+  // ---- feed rendering
+  function renderFilters() {
+    const counts = new Map();
+    for (const e of state.entries) if (!state.onlyBoost || isBoost(e)) counts.set(catOf(e), (counts.get(catOf(e)) || 0) + 1);
+    const cats = [...counts.entries()].sort((a, b) => b[1] - a[1]);
+    if (state.filter !== 'all' && !counts.has(state.filter)) cats.push([state.filter, 0]);
+    const total = [...counts.values()].reduce((a, b) => a + b, 0);
+    const box = $('filters');
+    box.replaceChildren();
+    const mk = (key, label, n) => {
+      const b = el('button', 'chip');
+      b.setAttribute('aria-pressed', String(state.filter === key));
+      b.append(el('span', null, label), el('span', 'n num', String(n)));
+      b.onclick = () => { state.filter = key; store('eldo.filter', key); renderFeed(); };
+      box.append(b);
+    };
+    mk('all', 'All', total);
+    for (const [k, n] of cats) mk(k, k, n);
+  }
+
+  function renderFeed() {
+    renderFilters();
+    const live = $('liveFeed'), old = $('oldFeed');
+    live.replaceChildren(); old.replaceChildren();
+    for (const e of state.entries) if (visible(e)) (e.live ? live : old).append(card(e, false));
+    counts();
+  }
+
+  function counts() {
+    const live = $('liveFeed').children.length, old = $('oldFeed').children.length;
+    $('liveCount').textContent = live; $('oldCount').textContent = old;
+    $('feedCount').textContent = state.entries.length;
+    $('liveEmpty').style.display = live ? 'none' : '';
+    $('earlier').style.display = old ? '' : 'none';
+  }
+
+  function addEntry(e) {
+    if (state.seen.has(e.id)) return;
+    state.seen.add(e.id);
+    state.entries.unshift(e);
+    if (state.entries.length > MAX_FEED) state.entries.length = MAX_FEED;
+    renderFilters();
+    if (visible(e)) {
+      $('liveFeed').prepend(card(e, true));
+      const cards = $('liveFeed').children;
+      while (cards.length > MAX_FEED) cards[cards.length - 1].remove();
+      const feedShown = $('liveFeed').offsetParent !== null;
+      if (feedShown && $('liveFeed').getBoundingClientRect().top < 60) { state.newBelow++; showNewPill(); }
+    }
+    counts();
+    chime(); desktopAlert(e); bumpTitle();
+  }
+
+  function showNewPill() {
+    const p = $('newPill');
+    p.innerHTML = icon('up');
+    p.append(el('span', null, `${state.newBelow} new`));
+    p.style.display = 'inline-flex';
+  }
+  $('newPill').onclick = () => { $('liveFeed').scrollIntoView({ behavior: 'smooth', block: 'start' }); };
+  window.addEventListener('scroll', () => {
+    if (state.newBelow && $('liveFeed').getBoundingClientRect().top > 60) { state.newBelow = 0; $('newPill').style.display = 'none'; }
+  }, { passive: true });
+
+  $('onlyBoost').checked = state.onlyBoost;
+  $('onlyBoost').onchange = () => { state.onlyBoost = $('onlyBoost').checked; store('eldo.onlyBoost', state.onlyBoost ? '1' : '0'); renderFeed(); };
+
+  // ---- auto-offer settings
   const DELIVERY_LABEL = (v) => {
     const m = /^(Minute|Hour|Day)(\d+)$/.exec(v);
     if (!m) return v;
     const n = Number(m[2]); const u = m[1] === 'Minute' ? 'min' : m[1] === 'Hour' ? (n === 1 ? 'hour' : 'hours') : (n === 1 ? 'day' : 'days');
     return `${n} ${u}`;
   };
-  const panels = new Map(); // categoryId -> { id, label, root, q, dirty, settings }
+  const panels = new Map();
+  const maxLen = () => (state.panel && state.panel.maxMessageLength) || 500;
 
   async function postJson(path, body) {
     try {
@@ -395,62 +507,124 @@
       let j = {};
       try { j = await r.json(); } catch {}
       return { ok: r.ok && j.ok !== false, ...j };
-    } catch (e) { return { ok: false, error: 'listener not reachable' }; }
+    } catch (e) { return { ok: false, error: 'Your bot is not reachable. Reload the page.' }; }
   }
 
-  const maxLen = () => (state.panel && state.panel.maxMessageLength) || 500;
+  function confirmAsk(title, text, summary, yesText) {
+    const d = $('confirmDlg');
+    $('cdTitle').textContent = title; $('cdText').textContent = text;
+    $('cdSum').textContent = summary || ''; $('cdSum').style.display = summary ? '' : 'none';
+    $('cdYes').textContent = yesText || 'Confirm';
+    d.returnValue = '';
+    d.showModal();
+    return new Promise((res) => d.addEventListener('close', () => res(d.returnValue === 'yes'), { once: true }));
+  }
 
-  function setEnabledUi(P, on) {
+  function summaryText(s) {
+    const price = Number(s.priceAmount) > 0 ? `${s.priceAmount} ${s.currency || ''}` : 'no price set';
+    return `${price} · ${DELIVERY_LABEL(s.deliveryTime || 'Day1')}${s.message ? '' : ' · no message yet'}`;
+  }
+
+  function setOn(P, on) {
     P.q('.opEnabled').checked = on;
-    const lab = P.q('.switchLabel');
-    lab.textContent = on ? 'ON' : 'OFF';
-    lab.classList.toggle('on', on);
-    P.root.classList.toggle('live', on);
+    P.root.classList.toggle('on', on);
+    P.q('.opEnabled').setAttribute('aria-label', `${P.label}: auto-offer ${on ? 'ON' : 'OFF'}`);
   }
 
   function updateCounter(P) {
     const n = P.q('.opMessage').value.trim().length, max = maxLen();
     const cc = P.q('.cc');
     cc.textContent = `${n} / ${max}`;
-    cc.classList.toggle('over', n > max);
+    cc.className = 'cc' + (n > max ? ' over' : n > max * 0.9 ? ' warn' : '');
+    P.q('.opSave').disabled = n > max;
+  }
+
+  function markDirty(P, dirty) {
+    P.dirty = dirty;
+    const h = P.q('.hint');
+    if (dirty) { h.textContent = 'Unsaved changes'; h.className = 'hint dirty'; }
+  }
+
+  function readPanel(P, enabled) {
+    return {
+      categoryId: P.id, enabled,
+      priceAmount: Number(P.q('.opPrice').value), currency: P.q('.opCurrency').value,
+      quantity: Number(P.q('.opQty').value), minQuantity: Number(P.q('.opMinQty').value),
+      deliveryTime: P.q('.opDelivery').value, message: P.q('.opMessage').value,
+    };
   }
 
   function buildPanel(cat, p) {
-    const root = $('panelTpl').content.firstElementChild.cloneNode(true);
+    const root = el('div', 'orow');
+    root.innerHTML = `
+      <div class="ohead" role="button" tabindex="0" aria-expanded="false">
+        <span class="sdot" aria-hidden="true"></span>
+        <div style="flex:1;min-width:0"><div class="nm"></div><div class="sm num"></div></div>
+        <label class="switch" title="Auto-offer ON / OFF"><input type="checkbox" class="opEnabled"><span class="track"><span class="knob"></span></span></label>
+        <span class="chev">${icon('chev')}</span>
+      </div>
+      <div class="oedit">
+        <div class="grid2">
+          <label class="f"><span>Price</span><div class="pricebox"><input class="opPrice num" type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="20"><select class="opCurrency" aria-label="Currency"></select></div></label>
+          <label class="f"><span>Delivery time</span><select class="opDelivery"></select></label>
+          <label class="f"><span>Quantity</span><input class="opQty num" type="number" min="1" step="1" inputmode="numeric"></label>
+          <label class="f"><span>Min quantity</span><input class="opMinQty num" type="number" min="1" step="1" inputmode="numeric"></label>
+        </div>
+        <label class="f"><span>Message to the buyer <em class="cc" style="font-style:normal"></em></span><textarea class="opMessage" placeholder="Hey! I can do this right now…"></textarea></label>
+        <div class="orow-foot"><div class="hint">Changes apply to the next request right away.</div><button class="btn gold opSave">Save</button></div>
+      </div>`;
     const P = { id: cat.id, label: cat.label, root, q: (s) => root.querySelector(s), dirty: false, settings: cat.settings };
-    root.dataset.cat = cat.id;
+    P.q('.nm').textContent = cat.label;
     P.q('.opCurrency').replaceChildren(...p.currencies.map((c) => { const o = el('option', null, c); o.value = c; return o; }));
     P.q('.opDelivery').replaceChildren(...p.deliveryTimes.map((d) => { const o = el('option', null, DELIVERY_LABEL(d)); o.value = d; return o; }));
-    ['.opPrice', '.opCurrency', '.opQty', '.opMinQty', '.opDelivery', '.opMessage'].forEach((s) => P.q(s).addEventListener('input', () => { P.dirty = true; updateCounter(P); }));
+    const head = P.q('.ohead');
+    const toggleOpen = () => {
+      const open = !root.classList.contains('open');
+      for (const other of panels.values()) if (other !== P) { other.root.classList.remove('open'); other.q('.ohead').setAttribute('aria-expanded', 'false'); }
+      root.classList.toggle('open', open);
+      head.setAttribute('aria-expanded', String(open));
+    };
+    head.addEventListener('click', (e) => { if (!e.target.closest('.switch')) toggleOpen(); });
+    head.addEventListener('keydown', (e) => { if ((e.key === 'Enter' || e.key === ' ') && !e.target.closest('.switch')) { e.preventDefault(); toggleOpen(); } });
+    ['.opPrice', '.opCurrency', '.opQty', '.opMinQty', '.opDelivery', '.opMessage'].forEach((s) => P.q(s).addEventListener('input', () => { markDirty(P, true); updateCounter(P); }));
     P.q('.opSave').onclick = () => savePanel(P, P.q('.opEnabled').checked);
     P.q('.opEnabled').onchange = async () => {
       const on = P.q('.opEnabled').checked;
-      if (on && !P.q('.opMessage').value.trim()) {
-        alert('Write a message to the buyer for ' + P.label + ' first.'); setEnabledUi(P, false); return;
+      if (on) {
+        const missing = !(Number(P.q('.opPrice').value) > 0) ? '.opPrice' : !P.q('.opMessage').value.trim() ? '.opMessage' : null;
+        if (missing) {
+          setOn(P, false);
+          if (!root.classList.contains('open')) toggleOpen();
+          P.q(missing).focus();
+          toast(`Set a ${missing === '.opPrice' ? 'price' : 'message'} for ${P.label} first`, false);
+          return;
+        }
+        const s = readPanel(P, true);
+        const ok = await confirmAsk(`Turn ON ${P.label}?`, 'Every new request in this category automatically gets this offer:',
+          `${s.priceAmount} ${s.currency} · quantity ${s.quantity} · delivery ${DELIVERY_LABEL(s.deliveryTime)}\n\n“${s.message.trim()}”`, 'Turn ON');
+        if (!ok) { setOn(P, false); return; }
       }
-      if (on && !confirm('Turn auto-offer ON for ' + P.label + '?\n\nEvery new ' + P.label + ' request will automatically get your offer:\n' +
-        `${P.q('.opPrice').value} ${P.q('.opCurrency').value} x${P.q('.opQty').value}, delivery ${DELIVERY_LABEL(P.q('.opDelivery').value)}.`)) {
-        setEnabledUi(P, false); return;
-      }
-      setEnabledUi(P, on);
+      setOn(P, on);
       await savePanel(P, on);
     };
-    $('offerPanels').append(root);
+    $('offerList').append(root);
     panels.set(cat.id, P);
     return P;
   }
 
   function fillPanel(p) {
     state.panel = p;
+    if (!panels.size) $('offerList').replaceChildren();
+    let on = 0;
     for (const cat of p.categories || []) {
       const P = panels.get(cat.id) || buildPanel(cat, p);
-      P.label = cat.label;
-      P.settings = cat.settings;
-      P.q('.opCategory').textContent = 'only for ' + cat.label;
+      P.label = cat.label; P.settings = cat.settings;
       const s = cat.settings;
-      setEnabledUi(P, !!s.enabled);
-      if (P.dirty) continue; // never overwrite what you are typing
-      P.q('.opPrice').value = s.priceAmount != null && isFinite(s.priceAmount) ? s.priceAmount : '';
+      if (s.enabled) on++;
+      setOn(P, !!s.enabled);
+      P.q('.sm').textContent = s.enabled ? summaryText(s) : 'OFF · ' + summaryText(s);
+      if (P.dirty) continue;
+      P.q('.opPrice').value = Number(s.priceAmount) > 0 ? s.priceAmount : '';
       P.q('.opCurrency').value = s.currency || 'USD';
       P.q('.opQty').value = s.quantity ?? 1;
       P.q('.opMinQty').value = s.minQuantity ?? 1;
@@ -458,79 +632,33 @@
       P.q('.opMessage').value = s.message || '';
       updateCounter(P);
     }
-  }
-
-  function readPanel(P, enabled) {
-    return {
-      categoryId: P.id,
-      enabled,
-      priceAmount: Number(P.q('.opPrice').value),
-      currency: P.q('.opCurrency').value,
-      quantity: Number(P.q('.opQty').value),
-      minQuantity: Number(P.q('.opMinQty').value),
-      deliveryTime: P.q('.opDelivery').value,
-      message: P.q('.opMessage').value,
-    };
-  }
-
-  function flash(P, text, ok) {
-    const tag = P.q('.saved');
-    tag.textContent = text; tag.style.color = ok ? '' : 'var(--red)';
-    tag.classList.add('show'); clearTimeout(P.flashT); P.flashT = setTimeout(() => tag.classList.remove('show'), 2400);
+    $('onCount').textContent = `${on} ON`;
+    $('tabOnCount').textContent = on ? `(${on})` : '';
   }
 
   async function savePanel(P, enabled) {
     const hint = P.q('.hint');
-    const msgLen = P.q('.opMessage').value.trim().length;
-    if (msgLen > maxLen()) {
-      hint.textContent = `⚠ Message is too long: ${msgLen} characters (Eldorado allows max ${maxLen()}). Make it shorter.`; hint.classList.add('err');
-      setEnabledUi(P, !!(P.settings && P.settings.enabled));
-      flash(P, 'Not saved', false);
+    const len = P.q('.opMessage').value.trim().length;
+    if (len > maxLen()) {
+      hint.textContent = `Message is ${len} characters - Eldorado allows ${maxLen()}. Make it shorter.`; hint.className = 'hint err';
+      setOn(P, !!(P.settings && P.settings.enabled));
       return false;
     }
     P.q('.opSave').disabled = true;
     const r = await postJson('/api/offer-settings', readPanel(P, enabled));
     P.q('.opSave').disabled = false;
     if (!r.ok) {
-      hint.textContent = '⚠ ' + (r.error || 'Could not save (link not reachable - reload the page)'); hint.classList.add('err');
-      setEnabledUi(P, !!(P.settings && P.settings.enabled));
-      flash(P, 'Not saved', false);
+      hint.textContent = r.error || 'Could not save - reload the page and try again.'; hint.className = 'hint err';
+      setOn(P, !!(P.settings && P.settings.enabled));
+      toast('Not saved', false);
       return false;
     }
     P.dirty = false;
     P.settings = r.settings;
-    hint.classList.remove('err');
-    hint.textContent = r.settings.enabled
-      ? `Live: every new ${P.label} buyer gets this offer once, about 1 second after the request.`
-      : 'Auto-offer is OFF for this category. Nothing is sent until you switch it on.';
-    flash(P, r.settings.enabled ? 'Saved ✓ - ON' : 'Saved ✓', true);
+    hint.className = 'hint';
+    hint.textContent = r.settings.enabled ? `ON · saved ${new Date().toLocaleTimeString()}` : `OFF · saved ${new Date().toLocaleTimeString()}`;
+    toast(r.settings.enabled ? `${P.label}: auto-offer ON` : `${P.label}: saved`);
     return true;
-  }
-
-  function offerBadge(o) {
-    const b = el('span', 'offer ' + (o.ok ? 'ok' : 'bad'), o.ok ? 'OFFER SENT ✓' : 'OFFER FAILED');
-    if (!o.ok) b.title = `HTTP ${o.status || 'network'}: ${o.error || ''}`;
-    return b;
-  }
-
-  function counts() {
-    const live = $('liveFeed').querySelectorAll('.card').length;
-    const old = $('oldFeed').querySelectorAll('.card').length;
-    $('liveCount').textContent = live;
-    $('oldCount').textContent = old;
-    $('liveEmpty').style.display = live ? 'none' : '';
-    $('earlierHead').style.display = old ? '' : 'none';
-  }
-
-  function render(feed) {
-    $('liveFeed').querySelectorAll('.card').forEach((c) => c.remove());
-    $('oldFeed').replaceChildren();
-    state.seen.clear();
-    for (const e of feed) {
-      state.seen.add(e.id);
-      (e.live ? $('liveFeed') : $('oldFeed')).append(card(e, false));
-    }
-    counts();
   }
 
   // ---- alerts
@@ -554,84 +682,99 @@
     if (!state.desktop || !('Notification' in window) || Notification.permission !== 'granted') return;
     const v = view(entry);
     try {
-      const n = new Notification(v.title, { body: [v.desc, ...v.chips.filter(c => c[0]).map(c => `${c[0]}: ${c[1]}`)].filter(Boolean).join('\n'), tag: entry.id });
+      const n = new Notification(v.title, { body: [v.category, v.buyer && 'Buyer: ' + v.buyer, v.fields.join(' · ')].filter(Boolean).join('\n'), tag: entry.id });
       n.onclick = () => { window.focus(); n.close(); };
     } catch {}
   }
   function bumpTitle() {
     if (!document.hidden) return;
     state.unseenWhileHidden++;
-    document.title = `(${state.unseenWhileHidden}) Eldorado Notifications`;
+    document.title = `(${state.unseenWhileHidden}) Seller Bot · Live`;
   }
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) { state.unseenWhileHidden = 0; document.title = 'Eldorado Notifications'; } });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) { state.unseenWhileHidden = 0; document.title = 'Seller Bot · Live'; } });
 
   function syncButtons() {
     $('soundBtn').classList.toggle('on', state.sound);
-    $('soundWaves').style.display = state.sound ? '' : 'none';
+    $('soundBtn').innerHTML = icon(state.sound ? 'sound' : 'mute');
     $('desktopBtn').classList.toggle('on', state.desktop);
+    $('desktopBtn').innerHTML = icon('monitor');
+    const dark = document.documentElement.dataset.theme !== 'light';
+    $('themeBtn').innerHTML = icon(dark ? 'sun' : 'moon');
   }
-  $('soundBtn').onclick = () => { state.sound = !state.sound; try { localStorage.setItem('eldo.sound', state.sound ? '1' : '0'); } catch {} syncButtons(); if (state.sound) chime(); };
+  $('soundBtn').onclick = () => { state.sound = !state.sound; store('eldo.sound', state.sound ? '1' : '0'); syncButtons(); if (state.sound) chime(); toast(state.sound ? 'Sound on' : 'Sound off'); };
   $('desktopBtn').onclick = async () => {
-    if (!('Notification' in window)) return;
+    if (!('Notification' in window)) return toast('This browser has no desktop alerts', false);
     if (!state.desktop && Notification.permission !== 'granted') {
       const p = await Notification.requestPermission();
-      if (p !== 'granted') return;
+      if (p !== 'granted') return toast('Desktop alerts blocked by the browser', false);
     }
     state.desktop = !state.desktop;
-    try { localStorage.setItem('eldo.desktop', state.desktop ? '1' : '0'); } catch {}
-    syncButtons();
+    store('eldo.desktop', state.desktop ? '1' : '0');
+    syncButtons(); toast(state.desktop ? 'Desktop alerts on' : 'Desktop alerts off');
+  };
+  $('themeBtn').onclick = () => {
+    const next = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';
+    document.documentElement.dataset.theme = next; store('eldo.theme', next); syncButtons();
   };
   syncButtons();
 
+  // mobile tabs
+  function setTab(offers) {
+    document.body.classList.toggle('tab-offers', offers);
+    $('tabFeed').setAttribute('aria-selected', String(!offers));
+    $('tabOffers').setAttribute('aria-selected', String(offers));
+  }
+  $('tabFeed').onclick = () => setTab(false);
+  $('tabOffers').onclick = () => setTab(true);
+
   // ---- stats
-  function setPill(cls, text) { const p = $('pill'); p.className = 'pill ' + cls; $('pillText').textContent = text; }
+  function setPill(cls, text) { $('pill').className = 'pill ' + cls; $('pillText').textContent = text; }
   function applyStats(s) {
     state.stats = s;
     $('sDetected').textContent = s.detected;
     $('sRtt').textContent = s.lastRttMs != null ? Math.round(s.lastRttMs) : '–';
     $('sOffers').textContent = s.offersSent ?? 0;
-    $('sOffersFail').textContent = s.offersFailed ? ` · ${s.offersFailed} failed` : '';
-    $('sInterval').textContent = s.intervalMs;
+    $('sOffersFail').textContent = s.offersFailed ? `${s.offersFailed} failed` : '';
     if (s.status === 'live') setPill('live', 'Live');
-    else if (s.status === 'retrying') setPill('retrying', 'Retrying');
+    else if (s.status === 'retrying') setPill('retrying', 'Reconnecting');
     else setPill('', 'Starting…');
     tickStatus();
   }
   function tickStatus() {
     const s = state.stats; const line = $('statusline');
     if (!s) return;
-    if (s.status === 'retrying' && s.message) { line.className = 'statusline warn'; line.textContent = s.message; return; }
+    $('sLast').textContent = s.lastPollAt ? (Math.max(0, Date.now() - s.lastPollAt) / 1000).toFixed(1) + 's' : '–';
+    if (s.status === 'retrying' && s.message) { line.className = 'statusline warn'; line.textContent = 'Eldorado is not answering right now - retrying automatically. (' + s.message + ')'; return; }
     line.className = 'statusline';
-    const last = s.lastPollAt ? `last checked ${((Date.now() - s.lastPollAt) / 1000).toFixed(1)}s ago` : 'first check pending';
-    line.textContent = `${s.polls.toLocaleString()} checks · ${last} · ${s.errors} errors`;
+    line.textContent = `Checking Eldorado every ${(s.intervalMs / 1000).toFixed(s.intervalMs % 1000 ? 1 : 0)}s · ${s.polls.toLocaleString()} checks · ${s.errors} errors`;
   }
 
   // ---- live connection
   function connect() {
     const es = new EventSource('/events');
-    es.addEventListener('init', (m) => { const d = JSON.parse(m.data); if (d.offerPanel) fillPanel(d.offerPanel); render(d.feed); applyStats(d.stats); });
+    es.addEventListener('init', (m) => {
+      const d = JSON.parse(m.data);
+      if (d.offerPanel) fillPanel(d.offerPanel);
+      state.entries = []; state.seen.clear();
+      for (const e of d.feed) { if (!state.seen.has(e.id)) { state.seen.add(e.id); state.entries.push(e); } }
+      renderFeed(); applyStats(d.stats);
+    });
     es.addEventListener('offerPanel', (m) => fillPanel(JSON.parse(m.data)));
     es.addEventListener('stats', (m) => applyStats(JSON.parse(m.data)));
-    es.addEventListener('notification', (m) => {
-      const e = JSON.parse(m.data);
-      if (state.seen.has(e.id)) return;
-      state.seen.add(e.id);
-      $('liveFeed').prepend(card(e, true));
-      counts(); chime(); desktopAlert(e); bumpTitle();
-    });
+    es.addEventListener('notification', (m) => addEntry(JSON.parse(m.data)));
     es.addEventListener('offer', (m) => {
       const { id, offer } = JSON.parse(m.data);
-      const c = document.querySelector(`.card[data-id="${CSS.escape(id)}"] .title`);
-      if (!c) return;
-      c.querySelectorAll('.offer').forEach((x) => x.remove());
-      c.append(offerBadge(offer));
+      const e = state.entries.find((x) => x.id === id);
+      if (e) e.offer = offer;
+      const t = document.querySelector(`.card[data-id="${CSS.escape(id)}"] .t`);
+      if (t) { t.querySelectorAll('.tag.sent, .tag.fail').forEach((x) => x.remove()); t.append(offerTag(offer)); }
+      if (offer.ok) toast('Offer sent ✓');
     });
     es.onopen = () => { if (!state.stats || state.stats.status !== 'live') setPill('retrying', 'Connecting…'); };
     es.addEventListener('error', () => {
-      // Session expired or logged out elsewhere: go to the login page instead of retrying forever.
       fetch('/api/session', { cache: 'no-store' }).then((r) => { if (r.status === 401) location.href = '/login'; }).catch(() => {});
     });
-    es.onerror = () => { setPill('offline', 'Listener offline'); const l = $('statusline'); l.className = 'statusline warn'; l.textContent = 'Lost connection to the local listener. Reconnecting automatically… (is `npm start` still running?)'; };
+    es.onerror = () => { setPill('offline', 'Offline'); const l = $('statusline'); l.className = 'statusline warn'; l.textContent = 'Lost connection to your bot. Reconnecting automatically…'; };
   }
   connect();
 

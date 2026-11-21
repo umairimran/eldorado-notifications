@@ -81,37 +81,74 @@ async function readBody(req: http.IncomingMessage, limit: number): Promise<strin
   return body;
 }
 
-const PAGE_CSS = `:root{--bg:#0b0d12;--line:#232a37;--text:#e8ebf1;--muted:#8b94a7;--gold:#f5b82e;--red:#f87171}
-*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:16px;background:radial-gradient(900px 500px at 20% -10%,#1b1a12,transparent 60%),var(--bg);color:var(--text);font:14px/1.45 "Segoe UI",system-ui,sans-serif}
-.box{width:100%;max-width:360px;background:#11141b;border:1px solid var(--line);border-radius:16px;padding:26px}
-h1{font-size:17px;margin:0 0 4px}p{color:var(--muted);margin:0 0 18px;font-size:13px}
-label{display:block;color:var(--muted);font-size:12px;margin:10px 0 4px}
-input{width:100%;background:#0a0c10;color:var(--text);border:1px solid var(--line);border-radius:10px;padding:11px 12px;font:inherit;outline:none}
-input:focus{border-color:rgba(245,184,46,.6)}
-button{margin-top:16px;width:100%;border:0;border-radius:10px;padding:11px;font:600 14px inherit;cursor:pointer;background:linear-gradient(135deg,#ffd36b,var(--gold));color:#1a1405}
-.err{color:var(--red);font-size:13px;margin-top:12px;min-height:18px}a{color:var(--gold)}`;
+const HEAD = `<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="dark light">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%23f5b82e'/%3E%3Cpath d='M16 7a6 6 0 0 0-6 6v4l-2 3v1h16v-1l-2-3v-4a6 6 0 0 0-6-6zm-2.5 15a2.5 2.5 0 0 0 5 0z' fill='%23161309'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script>try{var t=localStorage.getItem('eldo.theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>`;
+
+const LOGO = `<div class="logo"><svg viewBox="0 0 24 24" fill="#161309" width="20" height="20"><path d="M12 2a7 7 0 0 0-7 7v4.2L3.3 16a1 1 0 0 0 .9 1.5h15.6a1 1 0 0 0 .9-1.5L19 13.2V9a7 7 0 0 0-7-7zm-3 17a3 3 0 0 0 6 0z"/></svg></div>`;
+
+const PAGE_CSS = `:root,[data-theme="dark"]{--bg:#0a0b0f;--glow:rgba(245,184,46,.09);--surface:#111318;--input:#0c0e12;--line:#23272f;--line-2:#2d323c;--text:#eceef2;--text-2:#b4bac6;--muted:#858c9a;--gold:#f5b82e;--gold-2:#ffd36b;--gold-soft:rgba(245,184,46,.14);--red:#f87171;--red-soft:rgba(248,113,113,.12);--shadow:0 30px 80px -30px rgba(0,0,0,.8)}
+[data-theme="light"]{--bg:#f5f6f8;--glow:rgba(245,184,46,.14);--surface:#fff;--input:#fff;--line:#e4e7ec;--line-2:#d5dae1;--text:#12151b;--text-2:#3d4452;--muted:#69717f;--gold:#d99a0b;--gold-2:#f5b82e;--gold-soft:rgba(217,154,11,.14);--red:#dc2626;--red-soft:rgba(220,38,38,.08);--shadow:0 30px 80px -40px rgba(16,24,40,.35)}
+*{box-sizing:border-box}html,body{margin:0}
+body{min-height:100vh;display:grid;place-items:center;padding:20px;background:radial-gradient(800px 420px at 50% -5%,var(--glow),transparent 70%),var(--bg);color:var(--text);font:14px/1.5 Inter,"Segoe UI",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+.box{width:100%;max-width:380px;background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:30px 28px;box-shadow:var(--shadow)}
+.logo{width:44px;height:44px;border-radius:13px;display:grid;place-items:center;background:linear-gradient(140deg,var(--gold-2),var(--gold));box-shadow:0 10px 26px -8px rgba(245,184,46,.6);margin-bottom:18px}
+h1{font-size:20px;font-weight:650;letter-spacing:-.02em;margin:0 0 4px}
+p{color:var(--muted);margin:0 0 22px;font-size:13.5px}
+label{display:block;color:var(--text-2);font-size:12.5px;font-weight:500;margin:14px 0 6px}
+.in{position:relative}
+input{width:100%;height:44px;background:var(--input);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:0 13px;font:inherit;outline:none;transition:border-color .15s,box-shadow .15s}
+input:focus{border-color:color-mix(in srgb,var(--gold) 60%,transparent);box-shadow:0 0 0 3px var(--gold-soft)}
+.in input{padding-right:64px}
+.show{position:absolute;right:6px;top:6px;height:32px;padding:0 10px;border:0;border-radius:7px;background:transparent;color:var(--muted);font:600 12px inherit;cursor:pointer}
+.show:hover{color:var(--text);background:color-mix(in srgb,var(--line) 60%,transparent)}
+.go{margin-top:22px;width:100%;height:44px;border:0;border-radius:10px;font:650 14.5px inherit;cursor:pointer;background:linear-gradient(140deg,var(--gold-2),var(--gold));color:#1a1405;transition:filter .15s}
+.go:hover{filter:brightness(1.05)}
+.err{display:none;margin-top:14px;padding:10px 12px;border-radius:10px;background:var(--red-soft);color:var(--red);font-size:13px;font-weight:500}
+.err.on{display:block}
+.foot{margin-top:18px;text-align:center;color:var(--muted);font-size:12px}
+a{color:var(--gold);font-weight:600;text-decoration:none}a:hover{text-decoration:underline}
+.spin{width:18px;height:18px;border-radius:50%;border:2px solid var(--line-2);border-top-color:var(--gold);animation:s 1s linear infinite;display:inline-block;vertical-align:-4px;margin-right:8px}
+@keyframes s{to{transform:rotate(360deg)}}
+:focus-visible{outline:2px solid var(--gold);outline-offset:2px}`;
 
 function loginPage(error = '', username = ''): string {
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Seller Bot - Login</title><style>${PAGE_CSS}</style></head><body>
-<form class="box" method="post" action="/login">
-<h1>🔔 Eldorado Seller Bot</h1><p>Log in with the username and password you were given.</p>
+  return `<!doctype html><html lang="en" data-theme="dark"><head>${HEAD}
+<title>Log in · Seller Bot</title><style>${PAGE_CSS}</style></head><body>
+<form class="box" method="post" action="/login" id="f">
+${LOGO}
+<h1>Welcome back</h1><p>Instant offers on every new Eldorado buyer request. Log in with the username and password you were given.</p>
 <label for="u">Username</label><input id="u" name="username" autocomplete="username" autocapitalize="none" spellcheck="false" value="${esc(username)}" required ${username ? '' : 'autofocus'}>
-<label for="p">Password</label><input id="p" type="password" name="password" autocomplete="current-password" required ${username ? 'autofocus' : ''}>
-<button type="submit">Log in</button>
-<div class="err">${esc(error)}</div>
-</form></body></html>`;
+<label for="p">Password</label><div class="in"><input id="p" type="password" name="password" autocomplete="current-password" required ${username ? 'autofocus' : ''}><button type="button" class="show" id="sh" aria-label="Show password">Show</button></div>
+<button type="submit" class="go" id="go">Log in</button>
+<div class="err${error ? ' on' : ''}" role="alert">${esc(error)}</div>
+<div class="foot">No login yet? Ask the seller who gave you this link.</div>
+</form>
+<script>
+document.getElementById('sh').onclick=function(){var p=document.getElementById('p'),s=p.type==='password';p.type=s?'text':'password';this.textContent=s?'Hide':'Show';this.setAttribute('aria-label',s?'Hide password':'Show password');p.focus()};
+document.getElementById('f').onsubmit=function(){var g=document.getElementById('go');g.disabled=true;g.innerHTML='<span class="spin"></span>Logging in…'};
+</script></body></html>`;
 }
 
 function messagePage(title: string, text: string, refreshSec?: number): string {
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-${refreshSec ? `<meta http-equiv="refresh" content="${refreshSec}">` : ''}<title>${esc(title)}</title><style>${PAGE_CSS}</style></head><body>
-<div class="box"><h1>${esc(title)}</h1><p>${esc(text)}</p><p><a href="/logout">Log out</a></p></div></body></html>`;
+  return `<!doctype html><html lang="en" data-theme="dark"><head>${HEAD}
+${refreshSec ? `<meta http-equiv="refresh" content="${refreshSec}">` : ''}<title>${esc(title)} · Seller Bot</title><style>${PAGE_CSS}</style></head><body>
+<div class="box">${LOGO}<h1>${refreshSec ? '<span class="spin"></span>' : ''}${esc(title)}</h1><p>${esc(text)}</p><div class="foot" style="text-align:left"><a href="/logout">Log out</a></div></div></body></html>`;
 }
 
 function userBar(a: Account): string {
-  const admin = a.role === 'admin' ? `<a href="/admin" style="color:#f5b82e;text-decoration:none;font-weight:600">Admin panel</a><span style="opacity:.4">·</span>` : '';
-  return `<div id="platformBar" style="position:fixed;right:14px;bottom:14px;z-index:9999;display:flex;gap:8px;align-items:center;padding:8px 12px;border-radius:999px;background:#11141bee;border:1px solid #232a37;color:#c9cfdb;font:12px 'Segoe UI',system-ui,sans-serif;box-shadow:0 8px 30px -10px #000">👤 <b style="color:#e8ebf1">${esc(a.name)}</b><span style="opacity:.4">·</span>${admin}<a href="/logout" style="color:#8b94a7;text-decoration:none">Log out</a></div>`;
+  const css = `#platformBar{position:fixed;right:16px;bottom:16px;z-index:9999;display:flex;align-items:center;gap:4px;padding:5px 6px 5px 5px;border-radius:999px;background:color-mix(in srgb,var(--surface,#111318) 88%,transparent);backdrop-filter:blur(12px);border:1px solid var(--line-2,#2d323c);box-shadow:0 14px 40px -14px rgba(0,0,0,.7);font:600 12.5px Inter,"Segoe UI",system-ui,sans-serif;color:var(--text-2,#b4bac6)}
+#platformBar .av{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(140deg,#ffd36b,#f5b82e);color:#1a1405;font-weight:700;font-size:12px}
+#platformBar .nm{padding:0 8px 0 4px;color:var(--text,#eceef2);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#platformBar a{display:inline-flex;align-items:center;height:28px;padding:0 10px;border-radius:999px;color:var(--text-2,#b4bac6);text-decoration:none}
+#platformBar a:hover{background:var(--surface-3,#1c2029);color:var(--text,#eceef2)}
+#platformBar a.adm{color:var(--gold,#f5b82e)}
+@media (max-width:640px){#platformBar{right:10px;bottom:10px}#platformBar .nm{display:none}}`;
+  const initial = esc((a.name.trim()[0] ?? '?').toUpperCase());
+  const admin = a.role === 'admin' ? `<a class="adm" href="/admin">Admin panel</a>` : '';
+  return `<style>${css}</style><div id="platformBar" role="navigation" aria-label="Account"><span class="av" aria-hidden="true">${initial}</span><span class="nm">${esc(a.name)}</span>${admin}<a href="/logout">Log out</a></div>`;
 }
 
 export interface AccountView {
