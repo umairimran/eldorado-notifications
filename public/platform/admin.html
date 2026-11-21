@@ -296,6 +296,10 @@
   $('credCopy').onclick = async () => { try { await navigator.clipboard.writeText($('credText').textContent); toast('Copied ✓'); } catch { toast('Select the text and copy it'); } };
   $('credClose').onclick = () => $('dlgCred').close();
 
+  function confirmDuplicate(other) {
+    return confirm(`These API keys are already used by "${other}".\n\nUse them anyway (for testing)?\n\nBoth bots will see the same Eldorado requests. If the SAME category is ON in both bots, the buyer gets 2 offers from your account. New bots start with every category OFF.`);
+  }
+
   async function showLogin(a) {
     const r = await api(`accounts/${a.username}/credentials`);
     if (!r.ok) return alert(r.error || 'Failed');
@@ -317,7 +321,9 @@
     e.preventDefault();
     const f = $('formAdd');
     const b = $('addSubmit'); b.disabled = true; b.textContent = 'Checking keys with Eldorado…'; $('addErr').textContent = '';
-    const r = await api('accounts', { name: f.custName.value, username: f.username.value.trim().toLowerCase(), clientId: f.clientId.value, clientSecret: f.clientSecret.value, paidUntil: f.paidUntil.value, notes: f.notes.value });
+    const payload = { name: f.custName.value, username: f.username.value.trim().toLowerCase(), clientId: f.clientId.value, clientSecret: f.clientSecret.value, paidUntil: f.paidUntil.value, notes: f.notes.value };
+    let r = await api('accounts', payload);
+    if (!r.ok && r.duplicateOf && confirmDuplicate(r.duplicateOf)) r = await api('accounts', { ...payload, allowDuplicateKeys: true });
     b.disabled = false; b.textContent = 'Check keys & create';
     if (!r.ok) { $('addErr').textContent = r.error || 'Failed'; return; }
     $('dlgAdd').close(); f.reset();
@@ -332,7 +338,9 @@
     if (e.submitter && e.submitter.value === 'cancel') return;
     e.preventDefault();
     const f = $('formKeys'); $('keysErr').textContent = 'Checking with Eldorado…';
-    const r = await api(`accounts/${keysTarget.username}/keys`, { clientId: f.clientId.value, clientSecret: f.clientSecret.value });
+    const payload = { clientId: f.clientId.value, clientSecret: f.clientSecret.value };
+    let r = await api(`accounts/${keysTarget.username}/keys`, payload);
+    if (!r.ok && r.duplicateOf && confirmDuplicate(r.duplicateOf)) r = await api(`accounts/${keysTarget.username}/keys`, { ...payload, allowDuplicateKeys: true });
     if (!r.ok) { $('keysErr').textContent = r.error || 'Failed'; return; }
     $('dlgKeys').close(); f.reset(); toast('Keys saved, bot restarted ✓'); refresh();
   });

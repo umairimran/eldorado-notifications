@@ -145,7 +145,8 @@ export class PlatformServer {
         const status = e instanceof HttpError ? e.status : 500;
         const msg = e instanceof HttpError ? e.message : 'Internal error';
         if (!(e instanceof HttpError)) process.stderr.write(`[PLATFORM] ${req.method} ${req.url}: ${(e as Error)?.stack ?? e}\n`);
-        if (!res.headersSent) json(res, status, { ok: false, error: msg });
+        const duplicateOf = (e as { duplicateOf?: string }).duplicateOf;
+        if (!res.headersSent) json(res, status, { ok: false, error: msg, ...(duplicateOf ? { duplicateOf } : {}) });
         else res.destroy();
       });
     });
@@ -456,7 +457,7 @@ export class PlatformServer {
       }
       case 'keys': {
         const { clientId, clientSecret } = this.keysFrom(body);
-        this.assertKeysUnused(clientId, a.username);
+        if (body.allowDuplicateKeys !== true) this.assertKeysUnused(clientId, a.username);
         const v = await this.o.verifyKeys(clientId, clientSecret);
         if (!v.ok) throw new HttpError(400, v.error);
         const u: Account = {
@@ -532,11 +533,18 @@ export class PlatformServer {
     return { clientId, clientSecret };
   }
 
-  /** Two bots on one Eldorado account would send double offers. */
+  /**
+   * Two bots on one Eldorado account see the same requests (double offers if both have the same
+   * category ON). Refused unless the admin confirms (allowDuplicateKeys, e.g. for testing).
+   */
   private assertKeysUnused(clientId: string, exceptUsername?: string): void {
     for (const a of this.o.store.list()) {
       if (a.username === exceptUsername || !a.bot) continue;
-      if (this.o.store.keysOf(a)?.clientId === clientId) throw new HttpError(400, `These API keys are already used by "${a.username}"`);
+      if (this.o.store.keysOf(a)?.clientId === clientId) {
+        const e = new HttpError(409, `These API keys are already used by "${a.username}"`);
+        (e as HttpError & { duplicateOf?: string }).duplicateOf = a.username;
+        throw e;
+      }
     }
   }
 
@@ -549,7 +557,7 @@ export class PlatformServer {
     const { clientId, clientSecret } = this.keysFrom(body);
     const paidUntil = body.paidUntil ? String(body.paidUntil) : addMonths(this.today(), 1);
     if (!DATE_RE.test(paidUntil)) throw new HttpError(400, 'Paid until must be a date');
-    this.assertKeysUnused(clientId);
+    if (body.allowDuplicateKeys !== true) this.assertKeysUnused(clientId);
     const v = await this.o.verifyKeys(clientId, clientSecret);
     if (!v.ok) throw new HttpError(400, v.error);
 

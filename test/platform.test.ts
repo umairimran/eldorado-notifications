@@ -177,7 +177,15 @@ test('admin adds a customer: keys checked, stored encrypted, bot started, login 
 
     t.setKeysOk(true);
     r = await t.adminPost(a, 'accounts', { name: 'Ali', username: 'ali123', clientId: 'id-1', clientSecret: 'x' });
-    assert.match((await r.json()).error, /already used by "cust1"/);
+    assert.equal(r.status, 409);
+    const dup = await r.json();
+    assert.match(dup.error, /already used by "cust1"/);
+    assert.equal(dup.duplicateOf, 'cust1');
+
+    // same keys allowed when the admin confirms (testing)
+    r = await t.adminPost(a, 'accounts', { name: 'Test', username: 'test2', clientId: 'id-1', clientSecret: 'secret-1', allowDuplicateKeys: true });
+    assert.equal((await r.json()).ok, true);
+    assert.equal(t.store.keysOf(t.store.get('test2')!)!.clientId, 'id-1');
 
     r = await t.adminPost(a, 'accounts', { name: 'Ali', username: 'ali123', clientId: 'id-2', clientSecret: 'secret-2' });
     const j = await r.json();
