@@ -125,6 +125,7 @@ export interface AccountView {
   notes?: string;
   createdAt: string;
   hasBot: boolean;
+  botStopped: boolean;
   keyHint?: string;
   port?: number;
   pollIntervalMs?: number;
@@ -178,7 +179,7 @@ export class PlatformServer {
   // ---- bots --------------------------------------------------------------------------------
 
   async startBotFor(a: Account): Promise<void> {
-    if (!a.enabled || !a.bot) return;
+    if (!a.enabled || !a.bot || a.botStopped) return;
     const keys = this.o.store.keysOf(a)!;
     await this.o.runner.start({ username: a.username, port: a.bot.port, pollIntervalMs: a.bot.pollIntervalMs, ...keys });
   }
@@ -302,10 +303,15 @@ export class PlatformServer {
     });
     up.on('error', () => {
       if (res.headersSent) return void res.destroy();
+      const stopped = !!this.o.store.get(a.username)?.botStopped;
       if (wantsHtml(req)) {
-        res.writeHead(503, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' })
-          .end(messagePage('Your bot is starting…', 'This page refreshes by itself in a few seconds. If it takes more than a few minutes, contact the seller.', 5));
-      } else json(res, 503, { ok: false, error: 'bot is starting' });
+        const page = stopped
+          ? a.role === 'admin'
+            ? messagePage('Your bot is stopped', 'Start it again in the Admin Panel (▶ Start bot).')
+            : messagePage('Your bot is paused', 'The seller has paused your bot. Contact the seller to start it again.')
+          : messagePage('Your bot is starting…', 'This page refreshes by itself in a few seconds. If it takes more than a few minutes, contact the seller.', 5);
+        res.writeHead(503, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' }).end(page);
+      } else json(res, 503, { ok: false, error: stopped ? 'bot is stopped' : 'bot is starting' });
     });
     res.on('close', () => up.destroy());
     req.pipe(up);
@@ -330,6 +336,7 @@ export class PlatformServer {
       notes: a.notes,
       createdAt: a.createdAt,
       hasBot: !!a.bot,
+      botStopped: !!a.botStopped,
       keyHint: a.bot?.keyHint,
       port: a.bot?.port,
       pollIntervalMs: a.bot?.pollIntervalMs,
@@ -387,6 +394,11 @@ export class PlatformServer {
     if (req.method === 'GET' && action === 'log') {
       return json(res, 200, { ok: true, lines: a.bot ? await this.o.runner.tail(a.username, 300) : [] });
     }
+    if (req.method === 'GET' && action === 'credentials') {
+      if (a.role !== 'customer') throw new HttpError(400, 'Only customer logins can be shown');
+      if (!a.passwordBox) throw new HttpError(400, 'Not saved for this customer yet. Click "Reset password" once - after that you can always see it here.');
+      return json(res, 200, { ok: true, username: a.username, password: store.decrypt(a.passwordBox) });
+    }
     if (req.method !== 'POST') throw new HttpError(405, 'method not allowed');
     const isSelfAdmin = a.role === 'admin';
 
@@ -406,13 +418,28 @@ export class PlatformServer {
       }
       case 'restart': {
         if (!a.enabled || !a.bot) throw new HttpError(400, 'Enable the customer first');
+        if (a.botStopped) throw new HttpError(400, 'The bot is stopped. Click "Start bot".');
         await this.startBotFor(a);
+        break;
+      }
+      case 'stop-bot': {
+        if (!a.bot) throw new HttpError(400, 'This account has no bot (no API keys)');
+        await store.put({ ...a, botStopped: true });
+        await this.o.runner.stop(a.username);
+        break;
+      }
+      case 'start-bot': {
+        if (!a.bot) throw new HttpError(400, 'Add API keys first');
+        if (!a.enabled) throw new HttpError(400, 'Enable the customer first');
+        const u = { ...a, botStopped: false };
+        await store.put(u);
+        await this.startBotFor(u);
         break;
       }
       case 'reset-password': {
         if (isSelfAdmin) throw new HttpError(400, 'Change the admin password under "My account"');
         const password = generatePassword();
-        await store.put({ ...a, passwordHash: await hashPassword(password), sessionVersion: a.sessionVersion + 1 });
+        await store.put({ ...a, passwordHash: await hashPassword(password), passwordBox: store.encrypt(password), sessionVersion: a.sessionVersion + 1 });
         return json(res, 200, { ok: true, username: a.username, password });
       }
       case 'extend': {
@@ -533,6 +560,7 @@ export class PlatformServer {
       name,
       role: 'customer',
       passwordHash: await hashPassword(password),
+      passwordBox: store.encrypt(password),
       sessionVersion: 1,
       enabled: true,
       paidUntil,

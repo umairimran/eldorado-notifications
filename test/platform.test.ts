@@ -190,6 +190,13 @@ test('admin adds a customer: keys checked, stored encrypted, bot started, login 
     assert.ok(!raw.includes('secret-2') && !raw.includes(j.password));
     assert.equal(t.store.keysOf(t.store.get('ali123')!)!.clientSecret, 'secret-2');
     assert.equal((await t.login('ali123', j.password)).status, 303);
+
+    // admin can show the login details again any time; customers cannot
+    const cred = await (await fetch(`${t.base}/admin/api/accounts/ali123/credentials`, { headers: { cookie: a } })).json();
+    assert.deepEqual([cred.username, cred.password], ['ali123', j.password]);
+    const c = (await t.login('ali123', j.password)).cookie!;
+    assert.equal((await fetch(`${t.base}/admin/api/accounts/ali123/credentials`, { headers: { cookie: c } })).status, 403);
+    assert.equal((await fetch(`${t.base}/admin/api/accounts/admin/credentials`, { headers: { cookie: a } })).status, 400);
   } finally {
     await t.close();
   }
@@ -221,6 +228,32 @@ test('disable logs the customer out and blocks login; enable / +1 month / expiry
     assert.equal(ext.ok, true);
     assert.equal(ext.account.enabled, true);
     assert.equal(ext.account.paidUntil, addMonths(localDate(), 1));
+  } finally {
+    await t.close();
+  }
+});
+
+test('stop bot / start bot works for customers and the admin; login keeps working', async () => {
+  const t = await setup();
+  try {
+    const a = (await t.login('admin', 'admin-password-123')).cookie!;
+    await t.store.put({ ...t.store.get('admin')!, bot: { ...t.store.get('cust1')!.bot!, port: 1 } });
+    for (const u of ['cust1', 'admin']) {
+      const startsOf = () => t.runner.started.filter((s) => s.username === u).length;
+      const before = startsOf();
+      const s = await (await t.adminPost(a, `accounts/${u}/stop-bot`, {})).json();
+      assert.equal(s.ok, true);
+      assert.equal(s.account.botStopped, true);
+      assert.equal(t.runner.stopped.at(-1), u);
+      assert.equal(t.store.get(u)!.enabled, true); // still enabled: login works
+      assert.equal((await t.adminPost(a, `accounts/${u}/restart`, {})).status, 400);
+      await t.server.startAll();
+      assert.equal(startsOf(), before); // stays off after a platform restart
+      const g = await (await t.adminPost(a, `accounts/${u}/start-bot`, {})).json();
+      assert.equal(g.account.botStopped, false);
+      assert.equal(t.runner.started.at(-1)!.username, u);
+    }
+    assert.equal((await t.login('cust1', 'cust1-password')).status, 303);
   } finally {
     await t.close();
   }

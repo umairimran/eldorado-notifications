@@ -22,6 +22,8 @@ export interface Account {
   name: string;
   role: Role;
   passwordHash: string;
+  /** Customers: the login password, AES-encrypted, so the admin can show it again ("Login details"). */
+  passwordBox?: string;
   /** Bumped on disable / password change: every existing login of this account stops working. */
   sessionVersion: number;
   enabled: boolean;
@@ -30,6 +32,8 @@ export interface Account {
   paidUntil?: string;
   notes?: string;
   bot?: BotConfig;
+  /** Bot switched off with "Stop bot" (the login keeps working). */
+  botStopped?: boolean;
   createdAt: string;
   updatedAt: string;
 }

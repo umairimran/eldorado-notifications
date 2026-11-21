@@ -16,11 +16,13 @@ Open the link, log in as `admin`, you land on **/admin**.
 
 | Button | What it does |
 |---|---|
-| ＋ Add customer | Name, username, the seller's **Eldorado Client ID + Client Secret**, paid-until date. The keys are checked with Eldorado first (nothing is created if they are wrong), then stored encrypted. The new login + password is shown once with a **Copy** button - send it to the customer. |
-| ⏸ Disable / ▶ Enable | Stops the customer's bot and logs them out / starts it again. |
+| ＋ Add customer | Name, username, the seller's **Eldorado Client ID + Client Secret**, paid-until date. The keys are checked with Eldorado first (nothing is created if they are wrong), then stored encrypted. The new login + password is shown with a **Copy** button - send it to the customer. |
+| ⏹ Stop bot / ▶ Start bot | Switches only the bot off/on (no checking, no offers). Works for every account, **including the admin's own bot**. The login keeps working; a stopped bot stays off after restarts/reboots until started again. |
+| ⏸ Disable / ▶ Enable | Customers only: stops the bot **and** blocks the login (e.g. not paid) / allows it again. |
 | 📅 +1 month | Extends paid-until by one month. An expired customer is switched back on automatically. |
-| 🔑 API keys | Replace the customer's Eldorado keys (checked first), bot restarts. |
-| 🔒 Reset password | New password, shown once. The old one stops working immediately. |
+| 👁 Login details | Shows the customer's link + username + password again, with **Copy**. Passwords are stored AES-encrypted (plus a scrypt hash for login checks). |
+| 🔑 API keys | Replace the Eldorado keys (checked first), bot restarts. |
+| 🔒 Reset password | Makes a new password (also visible later under 👁 Login details). The old one stops working immediately. |
 | 🔄 Restart bot | Restarts that customer's bot. |
 | 📄 Log | Last 300 lines of the bot's log (API keys are never shown). |
 | ✏️ Edit | Name, paid-until, notes, check interval. |
