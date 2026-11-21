@@ -161,7 +161,8 @@ async function main(): Promise<void> {
   const expired = await server.checkExpiry();
   if (expired.length) out(`disabled (paid-until passed): ${expired.join(', ')}`);
   await server.startAll();
-  out(`started ${store.list().filter((a) => a.enabled && a.bot).length} bot(s)`);
+  const stopped = store.list().filter((a) => a.enabled && a.bot && a.botStopped).map((a) => a.username);
+  out(`started ${store.list().filter((a) => a.enabled && a.bot && !a.botStopped).length} bot(s)${stopped.length ? `; stopped by admin: ${stopped.join(', ')}` : ''}`);
   await backup(store).catch((e) => out(`backup failed: ${(e as Error).message}`));
 
   const expiryTimer = setInterval(() => {
