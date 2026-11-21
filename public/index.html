@@ -590,6 +590,10 @@
       c.append(offerBadge(offer));
     });
     es.onopen = () => { if (!state.stats || state.stats.status !== 'live') setPill('retrying', 'Connecting…'); };
+    es.addEventListener('error', () => {
+      // Session expired or logged out elsewhere: go to the login page instead of retrying forever.
+      fetch('/api/session', { cache: 'no-store' }).then((r) => { if (r.status === 401) location.href = '/login'; }).catch(() => {});
+    });
     es.onerror = () => { setPill('offline', 'Listener offline'); const l = $('statusline'); l.className = 'statusline warn'; l.textContent = 'Lost connection to the local listener. Reconnecting automatically… (is `npm start` still running?)'; };
   }
   connect();

@@ -43,6 +43,7 @@ interface Config {
   offer: OfferConfig;
   offerStateFile: string;
   offerSettingsFile: string;
+  dashboardPassword: string;
 }
 
 function intEnv(name: string, def: number, min: number, max: number): number {
@@ -84,6 +85,7 @@ function loadConfig(): Config {
     autoOffer,
     offer,
     offerSettingsFile: resolve(ROOT, '.state/offer-settings.json'),
+    dashboardPassword: process.env.DASHBOARD_PASSWORD ?? '',
     offerStateFile: resolve(ROOT, process.env.OFFER_STATE_FILE?.trim() || '.state/offered.json'),
     clientId,
     clientSecret,
@@ -284,7 +286,12 @@ async function main(): Promise<void> {
     categoryLabel: '🔥 Pirate Shop Access',
     deliveryTimes: DELIVERY_TIMES,
     currencies: CURRENCIES,
-  });
+  }, 200, cfg.dashboardPassword || undefined);
+  const loopback = ['127.0.0.1', 'localhost', '::1'].includes(cfg.webHost);
+  if (!loopback && cfg.dashboardPassword.length < 12) {
+    fail('[WEB] WEB_HOST exposes the page beyond this machine: set DASHBOARD_PASSWORD (12+ characters) in .env first.');
+  }
+  if (cfg.dashboardPassword && cfg.dashboardPassword.length < 12) fail('[WEB] DASHBOARD_PASSWORD must be at least 12 characters.');
   const store = await loadState(cfg.stateFile, warn);
   const writer = new StateWriter(cfg.stateFile, store, warn);
 
@@ -388,7 +395,7 @@ async function main(): Promise<void> {
   );
   out('[MODE] Live monitoring (HTTP polling - Eldorado offers no webhooks/push)');
   out(`[POLL] ${cfg.pollIntervalMs}ms (POLL_INTERVAL_MS; no documented rate limit, auto-slows on HTTP 429)`);
-  out(`[WEB] Live page: ${url}`);
+  out(`[WEB] Live page: ${url}${cfg.dashboardPassword ? ' (password login ON)' : ''}`);
   out(
     settings.enabled
       ? `[OFFER] Auto-offer ON for gameId ${cfg.offer.gameId} / boostingCategoryId ${cfg.offer.boostingCategoryId}: ${describeOffer(cfg.offer)} (one offer per request)`

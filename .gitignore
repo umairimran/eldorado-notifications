@@ -13,6 +13,9 @@ id_*
 logs/
 *.log
 
+# --- downloaded binaries (cloudflared) ---
+tools/
+
 # --- build / deps ---
 node_modules/
 dist/

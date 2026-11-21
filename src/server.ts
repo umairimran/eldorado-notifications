@@ -2,6 +2,7 @@
 // Bound to 127.0.0.1 only: the page shows buyer usernames and order details, so it is
 // never exposed to the network.
 import http from 'node:http';
+import { randomBytes, timingSafeEqual, createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { itemDate, itemId, type NotificationItem } from './notifications.js';
 import type { OfferSettings } from './offers.js';
@@ -45,11 +46,54 @@ function reply(res: http.ServerResponse, status: number, body: unknown): void {
   res.writeHead(status, { 'content-type': 'application/json', 'cache-control': 'no-store' }).end(JSON.stringify(body));
 }
 
+const SESSION_COOKIE = 'eldo_session';
+const SESSION_TTL_MS = 30 * 24 * 3600_000;
+
+function sha256(s: string): Buffer {
+  return createHash('sha256').update(s, 'utf8').digest();
+}
+
+function getCookie(req: http.IncomingMessage, name: string): string | undefined {
+  for (const part of (req.headers.cookie ?? '').split(';')) {
+    const i = part.indexOf('=');
+    if (i > 0 && part.slice(0, i).trim() === name) return decodeURIComponent(part.slice(i + 1).trim());
+  }
+  return undefined;
+}
+
+function isHttps(req: http.IncomingMessage): boolean {
+  return String(req.headers['x-forwarded-proto'] ?? '').split(',')[0].trim() === 'https';
+}
+
+function loginPage(error = ''): string {
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Eldorado Notifications - Login</title>
+<style>
+:root{--bg:#0b0d12;--line:#232a37;--text:#e8ebf1;--muted:#8b94a7;--gold:#f5b82e;--red:#f87171}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:16px;background:radial-gradient(900px 500px at 20% -10%,#1b1a12,transparent 60%),var(--bg);color:var(--text);font:14px/1.45 "Segoe UI",system-ui,sans-serif}
+form{width:100%;max-width:340px;background:#11141b;border:1px solid var(--line);border-radius:16px;padding:26px}
+h1{font-size:17px;margin:0 0 4px}p{color:var(--muted);margin:0 0 18px;font-size:13px}
+input{width:100%;background:#0a0c10;color:var(--text);border:1px solid var(--line);border-radius:10px;padding:11px 12px;font:inherit;outline:none}
+input:focus{border-color:rgba(245,184,46,.6)}
+button{margin-top:12px;width:100%;border:0;border-radius:10px;padding:11px;font:600 14px inherit;cursor:pointer;background:linear-gradient(135deg,#ffd36b,var(--gold));color:#1a1405}
+.err{color:var(--red);font-size:13px;margin-top:10px;min-height:18px}
+</style></head><body>
+<form method="post" action="/login">
+<h1>🔔 Eldorado Notifications</h1><p>Enter your dashboard password.</p>
+<input type="password" name="password" autocomplete="current-password" autofocus required>
+<button type="submit">Log in</button>
+<div class="err">${error.replace(/[<>&"]/g, '')}</div>
+</form></body></html>`;
+}
+
 export class WebServer {
   private readonly clients = new Set<http.ServerResponse>();
   private readonly feed: FeedEntry[] = [];
   private readonly server: http.Server;
   private heartbeat: NodeJS.Timeout | undefined;
+  private readonly sessions = new Map<string, number>(); // token -> expiry
+  private readonly failedLogins: number[] = [];
+  private readonly passwordHash: Buffer | undefined;
   stats: LiveStats;
 
   constructor(
@@ -57,7 +101,10 @@ export class WebServer {
     intervalMs: number,
     private readonly panel: OfferPanel,
     private readonly maxFeed = 200,
+    /** When set, every page/API request needs a login (required when the page is reachable from the internet). */
+    password?: string,
   ) {
+    this.passwordHash = password ? sha256(password) : undefined;
     this.stats = { status: 'starting', polls: 0, errors: 0, intervalMs, detected: 0, offersSent: 0, offersFailed: 0, startedAt: Date.now() };
     this.server = http.createServer((req, res) => void this.handle(req, res));
   }
@@ -99,6 +146,12 @@ export class WebServer {
     const entry = this.feed.find((e) => e.id === notificationId);
     if (entry) entry.offer = offer;
     this.broadcast('offer', { id: notificationId, offer });
+  }
+
+  /** Port actually bound (useful with port 0). */
+  get port(): number {
+    const a = this.server.address();
+    return typeof a === 'object' && a ? a.port : 0;
   }
 
   pushStats(): void {
@@ -144,7 +197,8 @@ export class WebServer {
    */
   private async handleSaveSettings(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
     const origin = req.headers.origin;
-    if (req.headers['x-eldo-page'] !== '1' || !String(req.headers['content-type']).startsWith('application/json') || (origin && origin !== `http://${req.headers.host}`)) {
+    const host = req.headers.host;
+    if (req.headers['x-eldo-page'] !== '1' || !String(req.headers['content-type']).startsWith('application/json') || (origin && origin !== `http://${host}` && origin !== `https://${host}`)) {
       reply(res, 403, { ok: false, error: 'forbidden' });
       return;
     }
@@ -172,8 +226,72 @@ export class WebServer {
     reply(res, 200, { ok: true, settings: r.value });
   }
 
+  // ---- login ------------------------------------------------------------------------------
+
+  private isLoggedIn(req: http.IncomingMessage): boolean {
+    if (!this.passwordHash) return true;
+    const token = getCookie(req, SESSION_COOKIE);
+    if (!token) return false;
+    const exp = this.sessions.get(token);
+    if (!exp || exp < Date.now()) {
+      this.sessions.delete(token);
+      return false;
+    }
+    return true;
+  }
+
+  private async handleLogin(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
+    const html = (status: number, body: string) =>
+      res.writeHead(status, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-frame-options': 'DENY' }).end(body);
+    if (req.method === 'GET') {
+      html(200, loginPage());
+      return;
+    }
+    const now = Date.now();
+    while (this.failedLogins.length && this.failedLogins[0] < now - 10 * 60_000) this.failedLogins.shift();
+    if (this.failedLogins.length >= 10) {
+      html(429, loginPage('Too many attempts. Wait 10 minutes.'));
+      return;
+    }
+    let body = '';
+    for await (const chunk of req) {
+      body += chunk;
+      if (body.length > 4096) break;
+    }
+    const password = new URLSearchParams(body).get('password') ?? '';
+    if (!this.passwordHash || !timingSafeEqual(sha256(password), this.passwordHash)) {
+      this.failedLogins.push(now);
+      await new Promise((r) => setTimeout(r, 800)); // slow down guessing
+      html(401, loginPage('Wrong password.'));
+      return;
+    }
+    const token = randomBytes(32).toString('base64url');
+    this.sessions.set(token, now + SESSION_TTL_MS);
+    const cookie = `${SESSION_COOKIE}=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${SESSION_TTL_MS / 1000}${isHttps(req) ? '; Secure' : ''}`;
+    res.writeHead(303, { location: '/', 'set-cookie': cookie, 'cache-control': 'no-store' }).end();
+  }
+
   private async handle(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
     const path = (req.url ?? '/').split('?')[0];
+    if (path === '/login' && (req.method === 'GET' || req.method === 'POST')) {
+      await this.handleLogin(req, res);
+      return;
+    }
+    if (path === '/logout') {
+      const token = getCookie(req, SESSION_COOKIE);
+      if (token) this.sessions.delete(token);
+      res.writeHead(303, { location: '/login', 'set-cookie': `${SESSION_COOKIE}=; Path=/; Max-Age=0`, 'cache-control': 'no-store' }).end();
+      return;
+    }
+    if (!this.isLoggedIn(req)) {
+      if (req.method === 'GET' && (path === '/' || path === '/index.html')) res.writeHead(303, { location: '/login', 'cache-control': 'no-store' }).end();
+      else reply(res, 401, { ok: false, error: 'login required' });
+      return;
+    }
+    if (path === '/api/session') {
+      reply(res, 200, { ok: true, auth: !!this.passwordHash });
+      return;
+    }
     if (req.method === 'POST' && path === '/api/offer-settings') {
       await this.handleSaveSettings(req, res);
       return;
