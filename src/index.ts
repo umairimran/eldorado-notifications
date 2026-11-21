@@ -26,7 +26,13 @@ import {
   type OfferSettings,
 } from './offers.js';
 
-const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
+/** Where the program files live (dist/, public/). */
+const APP_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
+/**
+ * Where this bot keeps its data (.env, .state/). Defaults to the program folder. The multi-customer
+ * platform sets ELDORADO_DATA_DIR so many bots can share one copy of the program, each with its own data.
+ */
+const ROOT = process.env.ELDORADO_DATA_DIR?.trim() ? resolve(process.env.ELDORADO_DATA_DIR.trim()) : APP_ROOT;
 
 interface Config {
   clientId: string;
@@ -299,7 +305,7 @@ async function main(): Promise<void> {
   const offers = new OfferSender(http.request, tokens, cfg.baseUrl, cfg.offer, cfg.offerStateFile);
   await offers.loadState();
 
-  const web = new WebServer(resolve(ROOT, 'public', 'index.html'), cfg.pollIntervalMs, {
+  const web = new WebServer(resolve(APP_ROOT, 'public', 'index.html'), cfg.pollIntervalMs, {
     get: () => OFFER_CATEGORIES.map((c) => ({ id: c.id, label: c.label, settings: settings[c.id] })),
     save: async (input) => {
       const categoryId = String((input as { categoryId?: unknown } | null)?.categoryId ?? '');

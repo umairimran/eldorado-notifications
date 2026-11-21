@@ -7,6 +7,8 @@ Read-only, low-latency listener for your Eldorado.gg seller notifications. Every
 
 It only ever calls two endpoints: the token endpoint and `GET /api/notifications/me`. It never marks anything as read, never touches offers, orders or messages.
 
+> **Multi-customer platform** (sell the bot to other sellers: one website with logins, an Admin Panel to add / disable / remove customers and their API keys, one bot per customer): see [docs/PLATFORM.md](docs/PLATFORM.md). Handover notes for the next developer: [CLAUDE.md](CLAUDE.md).
+
 ## Run
 
 Requires Node.js 22+ (`winget install OpenJS.NodeJS.LTS`).

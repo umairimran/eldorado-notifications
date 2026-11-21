@@ -1,0 +1,389 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin Panel - Seller Bot</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23f5b82e'/%3E%3Cpath d='M16 7a6 6 0 0 0-6 6v4l-2 3v1h16v-1l-2-3v-4a6 6 0 0 0-6-6zm-2.5 15a2.5 2.5 0 0 0 5 0z' fill='%23161309'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #0b0d12; --bg-2: #11141b; --card: #151922; --line: #232a37; --text: #e8ebf1; --muted: #8b94a7; --faint: #5d667a;
+    --gold: #f5b82e; --green: #34d399; --amber: #fbbf24; --red: #f87171; --blue: #60a5fa;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: radial-gradient(1200px 600px at 10% -10%, #1b1a12 0%, transparent 60%), var(--bg); color: var(--text); font: 14px/1.45 "Segoe UI Variable", "Segoe UI", system-ui, sans-serif; min-height: 100vh; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 16px 64px; }
+  header { position: sticky; top: 0; z-index: 10; backdrop-filter: blur(14px); background: color-mix(in srgb, var(--bg) 82%, transparent); border-bottom: 1px solid var(--line); }
+  .bar { max-width: 1080px; margin: 0 auto; padding: 12px 16px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .logo { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; background: linear-gradient(135deg, #ffd36b, var(--gold)); font-size: 17px; }
+  h1 { font-size: 16px; margin: 0; } .sub { color: var(--muted); font-size: 12px; }
+  .spacer { flex: 1; }
+  a.link { color: var(--muted); text-decoration: none; font-weight: 600; font-size: 13px; } a.link:hover { color: var(--text); }
+  .btn { border: 1px solid var(--line); background: #1a1f2a; color: var(--text); border-radius: 9px; padding: 7px 12px; font: 600 13px/1 inherit; cursor: pointer; white-space: nowrap; }
+  .btn:hover { border-color: #3a4456; } .btn:disabled { opacity: .5; cursor: default; }
+  .btn.gold { background: linear-gradient(135deg, #ffd36b, var(--gold)); color: #1a1405; border-color: transparent; }
+  .btn.red { color: var(--red); border-color: rgba(248,113,113,.35); }
+  .btn.green { color: var(--green); border-color: rgba(52,211,153,.35); }
+  .btn.sm { padding: 5px 9px; font-size: 12px; }
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 20px 0 16px; }
+  .stat { background: var(--bg-2); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
+  .stat .k { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .6px; font-weight: 600; }
+  .stat .v { font-size: 20px; font-weight: 650; margin-top: 2px; }
+  .toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
+  .toolbar input { flex: 1; min-width: 180px; }
+  input, select, textarea { background: #0a0c10; color: var(--text); border: 1px solid var(--line); border-radius: 9px; padding: 9px 11px; font: inherit; outline: none; width: 100%; }
+  input:focus, textarea:focus, select:focus { border-color: rgba(245,184,46,.55); }
+  .list { display: flex; flex-direction: column; gap: 10px; }
+  .acc { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 12px; align-items: start; }
+  .acc.off { opacity: .72; }
+  .acc .name { font-weight: 650; font-size: 15px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .muted { color: var(--muted); font-size: 12.5px; }
+  .faint { color: var(--faint); font-size: 12px; }
+  .badge { font-size: 10.5px; font-weight: 800; letter-spacing: .4px; padding: 2px 8px; border-radius: 6px; text-transform: uppercase; }
+  .b-run { background: rgba(52,211,153,.14); color: var(--green); } .b-start { background: rgba(96,165,250,.14); color: var(--blue); }
+  .b-err { background: rgba(248,113,113,.14); color: var(--red); } .b-off { background: #232a37; color: var(--muted); }
+  .b-admin { background: rgba(245,184,46,.14); color: var(--gold); } .b-warn { background: rgba(251,191,36,.14); color: var(--amber); }
+  .actions { grid-column: 1 / -1; display: flex; gap: 6px; flex-wrap: wrap; border-top: 1px solid var(--line); padding-top: 10px; }
+  .err { color: var(--red); font-size: 12.5px; }
+  dialog { background: var(--bg-2); color: var(--text); border: 1px solid var(--line); border-radius: 16px; padding: 22px; width: min(480px, calc(100vw - 32px)); }
+  dialog::backdrop { background: rgba(0,0,0,.6); }
+  dialog h2 { margin: 0 0 4px; font-size: 16px; } dialog p { color: var(--muted); margin: 0 0 14px; font-size: 13px; }
+  .f { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; }
+  .f > span { color: var(--muted); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; }
+  .row { display: flex; gap: 8px; justify-content: flex-end; margin-top: 14px; flex-wrap: wrap; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .cred { background: #0a0c10; border: 1px solid var(--line); border-radius: 10px; padding: 12px; font: 13px/1.6 ui-monospace, Consolas, monospace; white-space: pre-wrap; word-break: break-all; }
+  pre.log { background: #0a0c10; border: 1px solid var(--line); border-radius: 10px; padding: 12px; font: 11.5px/1.5 ui-monospace, Consolas, monospace; color: #b8c1d3; max-height: 60vh; overflow: auto; white-space: pre-wrap; word-break: break-word; margin: 0; }
+  dialog.wide { width: min(900px, calc(100vw - 32px)); }
+  .toast { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); background: #1a1f2a; border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; font-weight: 600; z-index: 50; display: none; }
+  .empty { text-align: center; color: var(--muted); padding: 40px 16px; border: 1px dashed var(--line); border-radius: 14px; }
+  @media (max-width: 760px) { .stats { grid-template-columns: repeat(2, 1fr); } .acc { grid-template-columns: 1fr; } .two { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<header>
+  <div class="bar">
+    <div class="logo">👑</div>
+    <div><h1>Admin Panel</h1><div class="sub">Customers, API keys, logins</div></div>
+    <div class="spacer"></div>
+    <a class="link" href="/" id="myBotLink">My bot ↗</a>
+    <button class="btn sm" id="myAccountBtn">My account</button>
+    <a class="link" href="/logout">Log out</a>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="stats">
+    <div class="stat"><div class="k">Customers</div><div class="v" id="sCustomers">–</div></div>
+    <div class="stat"><div class="k">Bots running</div><div class="v" id="sRunning">–</div></div>
+    <div class="stat"><div class="k">VPS memory used</div><div class="v" id="sMem">–</div></div>
+    <div class="stat"><div class="k">Last backup</div><div class="v" id="sBackup" style="font-size:15px">–</div></div>
+  </section>
+
+  <div class="toolbar">
+    <button class="btn gold" id="addBtn">＋ Add customer</button>
+    <input id="search" placeholder="Search name or username…">
+  </div>
+  <div class="list" id="list"><div class="empty">Loading…</div></div>
+</main>
+
+<!-- Add customer -->
+<dialog id="dlgAdd">
+  <form method="dialog" id="formAdd">
+    <h2>Add customer</h2>
+    <p>The API keys are checked with Eldorado before the customer is created, then stored encrypted.</p>
+    <div class="two">
+      <label class="f"><span>Customer name</span><input name="custName" required maxlength="60" placeholder="Ali"></label>
+      <label class="f"><span>Username (login)</span><input name="username" required pattern="[a-z0-9][a-z0-9_\-]{2,31}" placeholder="ali123" autocapitalize="none"></label>
+    </div>
+    <label class="f"><span>Eldorado Client ID</span><input name="clientId" required autocomplete="off" spellcheck="false"></label>
+    <label class="f"><span>Eldorado Client Secret</span><input name="clientSecret" type="password" required autocomplete="new-password" spellcheck="false"></label>
+    <div class="two">
+      <label class="f"><span>Paid until</span><input name="paidUntil" type="date" required></label>
+      <label class="f"><span>Notes (optional)</span><input name="notes" maxlength="500" placeholder="paid via …"></label>
+    </div>
+    <div class="err" id="addErr"></div>
+    <div class="row"><button class="btn" value="cancel" formnovalidate>Cancel</button><button class="btn gold" id="addSubmit" value="ok">Check keys &amp; create</button></div>
+  </form>
+</dialog>
+
+<!-- Show login details -->
+<dialog id="dlgCred">
+  <h2 id="credTitle">Customer created ✓</h2>
+  <p>Send this to the customer. The password is shown <b>only now</b>. You can reset it later.</p>
+  <div class="cred" id="credText"></div>
+  <div class="row"><button class="btn" id="credCopy">Copy</button><button class="btn gold" id="credClose">Done</button></div>
+</dialog>
+
+<!-- Change API keys -->
+<dialog id="dlgKeys">
+  <form method="dialog" id="formKeys">
+    <h2>Change API keys</h2>
+    <p id="keysFor"></p>
+    <label class="f"><span>Eldorado Client ID</span><input name="clientId" required autocomplete="off" spellcheck="false"></label>
+    <label class="f"><span>Eldorado Client Secret</span><input name="clientSecret" type="password" required autocomplete="new-password" spellcheck="false"></label>
+    <div class="err" id="keysErr"></div>
+    <div class="row"><button class="btn" value="cancel" formnovalidate>Cancel</button><button class="btn gold" value="ok">Check &amp; save</button></div>
+  </form>
+</dialog>
+
+<!-- Edit -->
+<dialog id="dlgEdit">
+  <form method="dialog" id="formEdit">
+    <h2>Edit customer</h2>
+    <p id="editFor"></p>
+    <label class="f"><span>Name</span><input name="custName" required maxlength="60"></label>
+    <div class="two">
+      <label class="f" id="editPaidWrap"><span>Paid until</span><input name="paidUntil" type="date"></label>
+      <label class="f"><span>Check every (ms)</span><input name="pollIntervalMs" type="number" min="1000" max="10000" step="500"></label>
+    </div>
+    <label class="f"><span>Notes</span><textarea name="notes" rows="3" maxlength="500"></textarea></label>
+    <div class="err" id="editErr"></div>
+    <div class="row"><button class="btn" value="cancel" formnovalidate>Cancel</button><button class="btn gold" value="ok">Save</button></div>
+  </form>
+</dialog>
+
+<!-- Delete -->
+<dialog id="dlgDelete">
+  <form method="dialog" id="formDelete">
+    <h2>Delete customer</h2>
+    <p>Stops their bot and removes their login. Their data folder is kept in <code>deleted\</code> on the VPS. Type the username <b id="delName"></b> to confirm.</p>
+    <label class="f"><span>Username</span><input name="confirm" required autocomplete="off"></label>
+    <div class="err" id="delErr"></div>
+    <div class="row"><button class="btn" value="cancel" formnovalidate>Cancel</button><button class="btn red" value="ok">Delete</button></div>
+  </form>
+</dialog>
+
+<!-- Log -->
+<dialog id="dlgLog" class="wide">
+  <h2 id="logTitle">Log</h2>
+  <p>Last 300 lines. API keys are never shown.</p>
+  <pre class="log" id="logText"></pre>
+  <div class="row"><button class="btn" id="logRefresh">Refresh</button><button class="btn gold" id="logClose">Close</button></div>
+</dialog>
+
+<!-- My account -->
+<dialog id="dlgMe">
+  <form method="dialog" id="formMe">
+    <h2>My account</h2>
+    <p>Change the admin password (at least 12 characters).</p>
+    <label class="f"><span>Current password</span><input name="current" type="password" required autocomplete="current-password"></label>
+    <label class="f"><span>New password</span><input name="next" type="password" required minlength="12" autocomplete="new-password"></label>
+    <div class="err" id="meErr"></div>
+    <div class="row"><button class="btn" value="cancel" formnovalidate>Cancel</button><button class="btn gold" value="ok">Change password</button></div>
+  </form>
+</dialog>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  let state = null;
+
+  function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+  function toast(msg) { const t = $('toast'); t.textContent = msg; t.style.display = 'block'; clearTimeout(toast.t); toast.t = setTimeout(() => (t.style.display = 'none'), 2600); }
+
+  async function api(path, body) {
+    const opts = body === undefined ? { cache: 'no-store' } : { method: 'POST', headers: { 'content-type': 'application/json', 'x-platform': '1' }, body: JSON.stringify(body) };
+    let r;
+    try { r = await fetch('/admin/api/' + path, opts); } catch { return { ok: false, error: 'Website not reachable. Reload the page.' }; }
+    if (r.status === 401) { location.href = '/login'; return { ok: false, error: 'Logged out' }; }
+    let j = {};
+    try { j = await r.json(); } catch {}
+    return { ...j, ok: r.ok && j.ok !== false };
+  }
+
+  const fmtAgo = (ms) => { if (!ms) return '–'; const s = Math.round((Date.now() - ms) / 1000); if (s < 60) return s + 's ago'; const m = Math.round(s / 60); if (m < 60) return m + ' min ago'; const h = Math.round(m / 60); if (h < 48) return h + ' h ago'; return Math.round(h / 24) + ' days ago'; };
+
+  function statusBadge(a) {
+    if (!a.enabled) return el('span', 'badge b-off', a.disabledReason === 'expired' ? 'Expired' : 'Disabled');
+    if (!a.hasBot) return el('span', 'badge b-off', 'No bot');
+    const s = a.bot ? a.bot.status : 'stopped';
+    if (s === 'running') return el('span', 'badge b-run', 'Running');
+    if (s === 'starting') return el('span', 'badge b-start', 'Starting');
+    if (s === 'error') return el('span', 'badge b-err', 'Problem');
+    return el('span', 'badge b-off', 'Stopped');
+  }
+
+  function btn(text, cls, fn) { const b = el('button', 'btn sm ' + (cls || ''), text); b.onclick = fn; return b; }
+
+  function render() {
+    if (!state) return;
+    $('sCustomers').textContent = state.system.customers;
+    $('sRunning').textContent = state.system.botsRunning;
+    $('sMem').textContent = state.system.memoryUsedPct + '%';
+    $('sBackup').textContent = fmtAgo(state.system.lastBackupAt);
+    const q = $('search').value.trim().toLowerCase();
+    const list = $('list');
+    const items = state.accounts.filter((a) => !q || a.username.includes(q) || a.name.toLowerCase().includes(q));
+    list.replaceChildren();
+    if (!items.length) { list.append(el('div', 'empty', q ? 'No match.' : 'No customers yet. Click “＋ Add customer”.')); return; }
+    for (const a of items) {
+      const card = el('div', 'acc' + (a.enabled ? '' : ' off'));
+      const c1 = el('div');
+      const nm = el('div', 'name');
+      nm.append(el('span', null, a.name), statusBadge(a));
+      if (a.role === 'admin') nm.append(el('span', 'badge b-admin', 'You'));
+      c1.append(nm, el('div', 'muted', '@' + a.username + (a.port ? ` · port ${a.port}` : '')));
+      if (a.bot && a.bot.lastError && a.enabled) c1.append(el('div', 'err', a.bot.lastError));
+      if (a.notes) c1.append(el('div', 'faint', a.notes));
+
+      const c2 = el('div');
+      if (a.role === 'customer') {
+        const d = a.daysLeft;
+        const paid = el('div', null, 'Paid until ' + (a.paidUntil || '–'));
+        c2.append(paid);
+        if (d != null) {
+          const cls = d < 0 ? 'badge b-err' : d <= 3 ? 'badge b-warn' : 'faint';
+          c2.append(el('span', cls, d < 0 ? 'expired' : d === 0 ? 'last day today' : d + ' days left'));
+        }
+      } else c2.append(el('div', 'muted', 'Admin (never expires)'));
+
+      const c3 = el('div');
+      if (a.bot) {
+        c3.append(el('div', null, `Offers today: ${a.bot.offersSentToday}` + (a.bot.offersFailedToday ? ` · ${a.bot.offersFailedToday} failed` : '')));
+        c3.append(el('div', 'faint', a.keyHint ? `API key ••••${a.keyHint}` : ''));
+        if (a.bot.startedAt && a.bot.status === 'running') c3.append(el('div', 'faint', 'running since ' + fmtAgo(a.bot.startedAt)));
+      } else c3.append(el('div', 'muted', 'No API keys yet'));
+
+      const act = el('div', 'actions');
+      if (a.role === 'customer') {
+        if (a.enabled) act.append(btn('⏸ Disable', 'red', () => action(a, 'disable', `Disable ${a.username}? Their bot stops and they can't log in.`)));
+        else act.append(btn('▶ Enable', 'green', () => action(a, 'enable')));
+        act.append(btn('📅 +1 month', '', () => action(a, 'extend', null, { months: 1 })));
+      }
+      act.append(btn('🔑 API keys', '', () => openKeys(a)));
+      if (a.role === 'customer') act.append(btn('🔒 Reset password', '', () => resetPassword(a)));
+      if (a.hasBot && a.enabled) act.append(btn('🔄 Restart bot', '', () => action(a, 'restart')));
+      if (a.hasBot) act.append(btn('📄 Log', '', () => openLog(a)));
+      act.append(btn('✏️ Edit', '', () => openEdit(a)));
+      if (a.role === 'customer') act.append(btn('🗑 Delete', 'red', () => openDelete(a)));
+
+      card.append(c1, c2, c3, act);
+      list.append(card);
+    }
+  }
+
+  async function refresh() {
+    const r = await api('state');
+    if (!r.ok) return;
+    state = r;
+    $('myBotLink').style.display = state.accounts.some((a) => a.role === 'admin' && a.hasBot) ? '' : 'none';
+    render();
+  }
+
+  async function action(a, name, confirmText, body) {
+    if (confirmText && !confirm(confirmText)) return;
+    const r = await api(`accounts/${a.username}/${name}`, body || {});
+    if (!r.ok) return alert(r.error || 'Failed');
+    toast('Done ✓');
+    refresh();
+  }
+
+  function showCred(title, username, password) {
+    const link = location.origin + '/login';
+    $('credTitle').textContent = title;
+    $('credText').textContent = `Link: ${link}\nUsername: ${username}\nPassword: ${password}`;
+    $('dlgCred').showModal();
+  }
+  $('credCopy').onclick = async () => { try { await navigator.clipboard.writeText($('credText').textContent); toast('Copied ✓'); } catch { toast('Select the text and copy it'); } };
+  $('credClose').onclick = () => $('dlgCred').close();
+
+  async function resetPassword(a) {
+    if (!confirm(`Make a new password for ${a.username}? The old one stops working right away.`)) return;
+    const r = await api(`accounts/${a.username}/reset-password`, {});
+    if (!r.ok) return alert(r.error || 'Failed');
+    showCred('New password ✓', r.username, r.password);
+  }
+
+  // add
+  function plusMonth() { const d = new Date(); d.setMonth(d.getMonth() + 1); return d.toISOString().slice(0, 10); }
+  $('addBtn').onclick = () => { $('formAdd').reset(); $('formAdd').paidUntil.value = plusMonth(); $('addErr').textContent = ''; $('dlgAdd').showModal(); };
+  $('formAdd').addEventListener('submit', async (e) => {
+    if (e.submitter && e.submitter.value === 'cancel') return;
+    e.preventDefault();
+    const f = $('formAdd');
+    const b = $('addSubmit'); b.disabled = true; b.textContent = 'Checking keys with Eldorado…'; $('addErr').textContent = '';
+    const r = await api('accounts', { name: f.custName.value, username: f.username.value.trim().toLowerCase(), clientId: f.clientId.value, clientSecret: f.clientSecret.value, paidUntil: f.paidUntil.value, notes: f.notes.value });
+    b.disabled = false; b.textContent = 'Check keys & create';
+    if (!r.ok) { $('addErr').textContent = r.error || 'Failed'; return; }
+    $('dlgAdd').close(); f.reset();
+    refresh();
+    showCred('Customer created ✓', r.username, r.password);
+  });
+
+  // keys
+  let keysTarget = null;
+  function openKeys(a) { keysTarget = a; $('formKeys').reset(); $('keysErr').textContent = ''; $('keysFor').textContent = `${a.name} (@${a.username})` + (a.keyHint ? ` · current key ••••${a.keyHint}` : ''); $('dlgKeys').showModal(); }
+  $('formKeys').addEventListener('submit', async (e) => {
+    if (e.submitter && e.submitter.value === 'cancel') return;
+    e.preventDefault();
+    const f = $('formKeys'); $('keysErr').textContent = 'Checking with Eldorado…';
+    const r = await api(`accounts/${keysTarget.username}/keys`, { clientId: f.clientId.value, clientSecret: f.clientSecret.value });
+    if (!r.ok) { $('keysErr').textContent = r.error || 'Failed'; return; }
+    $('dlgKeys').close(); f.reset(); toast('Keys saved, bot restarted ✓'); refresh();
+  });
+
+  // edit
+  let editTarget = null;
+  function openEdit(a) {
+    editTarget = a; const f = $('formEdit'); $('editErr').textContent = '';
+    $('editFor').textContent = '@' + a.username;
+    f.custName.value = a.name; f.notes.value = a.notes || '';
+    f.paidUntil.value = a.paidUntil || ''; $('editPaidWrap').style.display = a.role === 'customer' ? '' : 'none';
+    f.pollIntervalMs.value = a.pollIntervalMs || 1000; f.pollIntervalMs.disabled = !a.hasBot;
+    $('dlgEdit').showModal();
+  }
+  $('formEdit').addEventListener('submit', async (e) => {
+    if (e.submitter && e.submitter.value === 'cancel') return;
+    e.preventDefault();
+    const f = $('formEdit');
+    const body = { name: f.custName.value, notes: f.notes.value };
+    if (editTarget.role === 'customer' && f.paidUntil.value) body.paidUntil = f.paidUntil.value;
+    if (editTarget.hasBot) body.pollIntervalMs = Number(f.pollIntervalMs.value);
+    const r = await api(`accounts/${editTarget.username}/update`, body);
+    if (!r.ok) { $('editErr').textContent = r.error || 'Failed'; return; }
+    $('dlgEdit').close(); toast('Saved ✓'); refresh();
+  });
+
+  // delete
+  let delTarget = null;
+  function openDelete(a) { delTarget = a; $('formDelete').reset(); $('delErr').textContent = ''; $('delName').textContent = a.username; $('dlgDelete').showModal(); }
+  $('formDelete').addEventListener('submit', async (e) => {
+    if (e.submitter && e.submitter.value === 'cancel') return;
+    e.preventDefault();
+    const r = await api(`accounts/${delTarget.username}/delete`, { confirm: $('formDelete').confirm.value.trim() });
+    if (!r.ok) { $('delErr').textContent = r.error || 'Failed'; return; }
+    $('dlgDelete').close(); toast('Deleted'); refresh();
+  });
+
+  // log
+  let logTarget = null;
+  async function loadLog() {
+    const r = await api(`accounts/${logTarget.username}/log`);
+    $('logText').textContent = r.ok ? (r.lines.join('\n') || '(empty)') : (r.error || 'Failed');
+    const pre = $('logText'); pre.scrollTop = pre.scrollHeight;
+  }
+  function openLog(a) { logTarget = a; $('logTitle').textContent = `Log · @${a.username}`; $('logText').textContent = 'Loading…'; $('dlgLog').showModal(); loadLog(); }
+  $('logRefresh').onclick = loadLog;
+  $('logClose').onclick = () => $('dlgLog').close();
+
+  // me
+  $('myAccountBtn').onclick = () => { $('formMe').reset(); $('meErr').textContent = ''; $('dlgMe').showModal(); };
+  $('formMe').addEventListener('submit', async (e) => {
+    if (e.submitter && e.submitter.value === 'cancel') return;
+    e.preventDefault();
+    const f = $('formMe');
+    const r = await api('me/password', { current: f.current.value, next: f.next.value });
+    if (!r.ok) { $('meErr').textContent = r.error || 'Failed'; return; }
+    $('dlgMe').close(); toast('Password changed ✓');
+  });
+
+  $('search').addEventListener('input', render);
+  refresh();
+  setInterval(() => { if (!document.querySelector('dialog[open]')) refresh(); }, 5000);
+})();
+</script>
+</body>
+</html>
