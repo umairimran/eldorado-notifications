@@ -177,6 +177,10 @@
   .switchLabel { font-size: 12px; font-weight: 800; letter-spacing: .5px; color: var(--muted); min-width: 26px; }
   .switchLabel.on { color: var(--green); }
   .composer.live { border-color: rgba(52,211,153,.35); }
+  #offerPanels { display: flex; flex-direction: column; gap: 10px; margin-bottom: 6px; }
+  #offerPanels .composer { margin-bottom: 0; }
+  .field .cc { font-style: normal; font-weight: 600; text-transform: none; letter-spacing: 0; color: var(--faint); margin-left: 6px; }
+  .field .cc.over { color: var(--red); }
   @media (max-width: 640px) { .grid { grid-template-columns: 1fr 1fr; } }
 
   .empty { text-align: center; color: var(--muted); padding: 48px 16px; border: 1px dashed var(--line); border-radius: var(--radius); }
@@ -219,29 +223,32 @@
   </section>
   <div class="statusline" id="statusline">Waiting for the listener…</div>
 
-  <section class="composer" id="offerPanel" hidden>
-    <div class="head">
-      <b>⚡ Auto-offer</b><span id="opCategory">🔥 Pirate Shop Access</span>
-      <div class="spacer"></div>
-      <span class="saved" id="savedTag">Saved ✓</span>
-      <label class="switch" title="Turn auto-offer on/off">
-        <input type="checkbox" id="opEnabled"><span class="track"><span class="knob"></span></span>
-        <span class="switchLabel" id="opEnabledLabel">OFF</span>
-      </label>
-    </div>
-    <div class="grid">
-      <label class="field"><span>Price</span><input id="opPrice" type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="20"></label>
-      <label class="field"><span>Currency</span><select id="opCurrency"></select></label>
-      <label class="field"><span>Quantity</span><input id="opQty" type="number" min="1" step="1" inputmode="numeric"></label>
-      <label class="field"><span>Min quantity</span><input id="opMinQty" type="number" min="1" step="1" inputmode="numeric"></label>
-      <label class="field"><span>Delivery time</span><select id="opDelivery"></select></label>
-    </div>
-    <label class="field"><span>Message to the buyer</span><textarea id="opMessage" maxlength="1000" placeholder="Hey! I can do this right now…"></textarea></label>
-    <div class="row">
-      <div class="hint" id="opHint">Sent automatically, once per buyer, about 1 second after a new request appears.</div>
-      <button class="btn gold" id="opSave">Save settings</button>
-    </div>
-  </section>
+  <div id="offerPanels"></div>
+  <template id="panelTpl">
+    <section class="composer">
+      <div class="head">
+        <b>⚡ Auto-offer</b><span class="opCategory"></span>
+        <div class="spacer"></div>
+        <span class="saved">Saved ✓</span>
+        <label class="switch" title="Turn auto-offer on/off for this category">
+          <input type="checkbox" class="opEnabled"><span class="track"><span class="knob"></span></span>
+          <span class="switchLabel">OFF</span>
+        </label>
+      </div>
+      <div class="grid">
+        <label class="field"><span>Price</span><input class="opPrice" type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="20"></label>
+        <label class="field"><span>Currency</span><select class="opCurrency"></select></label>
+        <label class="field"><span>Quantity</span><input class="opQty" type="number" min="1" step="1" inputmode="numeric"></label>
+        <label class="field"><span>Min quantity</span><input class="opMinQty" type="number" min="1" step="1" inputmode="numeric"></label>
+        <label class="field"><span>Delivery time</span><select class="opDelivery"></select></label>
+      </div>
+      <label class="field"><span>Message to the buyer <em class="cc"></em></span><textarea class="opMessage" placeholder="Hey! I can do this right now…"></textarea></label>
+      <div class="row">
+        <div class="hint">Sent automatically, once per buyer, about 1 second after a new request appears.</div>
+        <button class="btn gold opSave">Save settings</button>
+      </div>
+    </section>
+  </template>
 
   <div class="section">Live <span class="count" id="liveCount">0</span></div>
   <div class="feed" id="liveFeed">
@@ -380,8 +387,7 @@
     const n = Number(m[2]); const u = m[1] === 'Minute' ? 'min' : m[1] === 'Hour' ? (n === 1 ? 'hour' : 'hours') : (n === 1 ? 'day' : 'days');
     return `${n} ${u}`;
   };
-  let panelBuilt = false;
-  let dirty = false;
+  const panels = new Map(); // categoryId -> { id, label, root, q, dirty, settings }
 
   async function postJson(path, body) {
     try {
@@ -392,83 +398,114 @@
     } catch (e) { return { ok: false, error: 'listener not reachable' }; }
   }
 
-  function setEnabledUi(on) {
-    $('opEnabled').checked = on;
-    $('opEnabledLabel').textContent = on ? 'ON' : 'OFF';
-    $('opEnabledLabel').classList.toggle('on', on);
-    $('offerPanel').classList.toggle('live', on);
+  const maxLen = () => (state.panel && state.panel.maxMessageLength) || 500;
+
+  function setEnabledUi(P, on) {
+    P.q('.opEnabled').checked = on;
+    const lab = P.q('.switchLabel');
+    lab.textContent = on ? 'ON' : 'OFF';
+    lab.classList.toggle('on', on);
+    P.root.classList.toggle('live', on);
+  }
+
+  function updateCounter(P) {
+    const n = P.q('.opMessage').value.trim().length, max = maxLen();
+    const cc = P.q('.cc');
+    cc.textContent = `${n} / ${max}`;
+    cc.classList.toggle('over', n > max);
+  }
+
+  function buildPanel(cat, p) {
+    const root = $('panelTpl').content.firstElementChild.cloneNode(true);
+    const P = { id: cat.id, label: cat.label, root, q: (s) => root.querySelector(s), dirty: false, settings: cat.settings };
+    root.dataset.cat = cat.id;
+    P.q('.opCurrency').replaceChildren(...p.currencies.map((c) => { const o = el('option', null, c); o.value = c; return o; }));
+    P.q('.opDelivery').replaceChildren(...p.deliveryTimes.map((d) => { const o = el('option', null, DELIVERY_LABEL(d)); o.value = d; return o; }));
+    ['.opPrice', '.opCurrency', '.opQty', '.opMinQty', '.opDelivery', '.opMessage'].forEach((s) => P.q(s).addEventListener('input', () => { P.dirty = true; updateCounter(P); }));
+    P.q('.opSave').onclick = () => savePanel(P, P.q('.opEnabled').checked);
+    P.q('.opEnabled').onchange = async () => {
+      const on = P.q('.opEnabled').checked;
+      if (on && !P.q('.opMessage').value.trim()) {
+        alert('Write a message to the buyer for ' + P.label + ' first.'); setEnabledUi(P, false); return;
+      }
+      if (on && !confirm('Turn auto-offer ON for ' + P.label + '?\n\nEvery new ' + P.label + ' request will automatically get your offer:\n' +
+        `${P.q('.opPrice').value} ${P.q('.opCurrency').value} x${P.q('.opQty').value}, delivery ${DELIVERY_LABEL(P.q('.opDelivery').value)}.`)) {
+        setEnabledUi(P, false); return;
+      }
+      setEnabledUi(P, on);
+      await savePanel(P, on);
+    };
+    $('offerPanels').append(root);
+    panels.set(cat.id, P);
+    return P;
   }
 
   function fillPanel(p) {
     state.panel = p;
-    const panel = $('offerPanel');
-    panel.hidden = false;
-    $('opCategory').textContent = 'only for ' + p.categoryLabel;
-    if (!panelBuilt) {
-      $('opCurrency').replaceChildren(...p.currencies.map((c) => { const o = el('option', null, c); o.value = c; return o; }));
-      $('opDelivery').replaceChildren(...p.deliveryTimes.map((d) => { const o = el('option', null, DELIVERY_LABEL(d)); o.value = d; return o; }));
-      panelBuilt = true;
+    for (const cat of p.categories || []) {
+      const P = panels.get(cat.id) || buildPanel(cat, p);
+      P.label = cat.label;
+      P.settings = cat.settings;
+      P.q('.opCategory').textContent = 'only for ' + cat.label;
+      const s = cat.settings;
+      setEnabledUi(P, !!s.enabled);
+      if (P.dirty) continue; // never overwrite what you are typing
+      P.q('.opPrice').value = s.priceAmount != null && isFinite(s.priceAmount) ? s.priceAmount : '';
+      P.q('.opCurrency').value = s.currency || 'USD';
+      P.q('.opQty').value = s.quantity ?? 1;
+      P.q('.opMinQty').value = s.minQuantity ?? 1;
+      P.q('.opDelivery').value = s.deliveryTime || 'Day1';
+      P.q('.opMessage').value = s.message || '';
+      updateCounter(P);
     }
-    const s = p.settings;
-    setEnabledUi(!!s.enabled);
-    if (dirty) return; // never overwrite what you are typing
-    $('opPrice').value = s.priceAmount != null && isFinite(s.priceAmount) ? s.priceAmount : '';
-    $('opCurrency').value = s.currency || 'USD';
-    $('opQty').value = s.quantity ?? 1;
-    $('opMinQty').value = s.minQuantity ?? 1;
-    $('opDelivery').value = s.deliveryTime || 'Day1';
-    $('opMessage').value = s.message || '';
   }
 
-  function readPanel(enabled) {
+  function readPanel(P, enabled) {
     return {
+      categoryId: P.id,
       enabled,
-      priceAmount: Number($('opPrice').value),
-      currency: $('opCurrency').value,
-      quantity: Number($('opQty').value),
-      minQuantity: Number($('opMinQty').value),
-      deliveryTime: $('opDelivery').value,
-      message: $('opMessage').value,
+      priceAmount: Number(P.q('.opPrice').value),
+      currency: P.q('.opCurrency').value,
+      quantity: Number(P.q('.opQty').value),
+      minQuantity: Number(P.q('.opMinQty').value),
+      deliveryTime: P.q('.opDelivery').value,
+      message: P.q('.opMessage').value,
     };
   }
 
-  function flash(text, ok) {
-    const tag = $('savedTag');
+  function flash(P, text, ok) {
+    const tag = P.q('.saved');
     tag.textContent = text; tag.style.color = ok ? '' : 'var(--red)';
-    tag.classList.add('show'); clearTimeout(flash.t); flash.t = setTimeout(() => tag.classList.remove('show'), 2400);
+    tag.classList.add('show'); clearTimeout(P.flashT); P.flashT = setTimeout(() => tag.classList.remove('show'), 2400);
   }
 
-  async function savePanel(enabled) {
-    const hint = $('opHint');
-    $('opSave').disabled = true;
-    const r = await postJson('/api/offer-settings', readPanel(enabled));
-    $('opSave').disabled = false;
-    if (!r.ok) {
-      hint.textContent = '⚠ ' + (r.error || 'Could not save'); hint.classList.add('err');
-      setEnabledUi(!!(state.panel && state.panel.settings.enabled));
-      flash('Not saved', false);
+  async function savePanel(P, enabled) {
+    const hint = P.q('.hint');
+    const msgLen = P.q('.opMessage').value.trim().length;
+    if (msgLen > maxLen()) {
+      hint.textContent = `⚠ Message is too long: ${msgLen} characters (Eldorado allows max ${maxLen()}). Make it shorter.`; hint.classList.add('err');
+      setEnabledUi(P, !!(P.settings && P.settings.enabled));
+      flash(P, 'Not saved', false);
       return false;
     }
-    dirty = false;
+    P.q('.opSave').disabled = true;
+    const r = await postJson('/api/offer-settings', readPanel(P, enabled));
+    P.q('.opSave').disabled = false;
+    if (!r.ok) {
+      hint.textContent = '⚠ ' + (r.error || 'Could not save (link not reachable - reload the page)'); hint.classList.add('err');
+      setEnabledUi(P, !!(P.settings && P.settings.enabled));
+      flash(P, 'Not saved', false);
+      return false;
+    }
+    P.dirty = false;
+    P.settings = r.settings;
     hint.classList.remove('err');
     hint.textContent = r.settings.enabled
-      ? `Live: every new ${state.panel ? state.panel.categoryLabel : ''} buyer gets this offer once, about 1 second after the request.`
-      : 'Auto-offer is OFF. Nothing is sent until you switch it on.';
-    flash(r.settings.enabled ? 'Saved ✓ - ON' : 'Saved ✓', true);
+      ? `Live: every new ${P.label} buyer gets this offer once, about 1 second after the request.`
+      : 'Auto-offer is OFF for this category. Nothing is sent until you switch it on.';
+    flash(P, r.settings.enabled ? 'Saved ✓ - ON' : 'Saved ✓', true);
     return true;
   }
-
-  ['opPrice', 'opCurrency', 'opQty', 'opMinQty', 'opDelivery', 'opMessage'].forEach((id) => $(id).addEventListener('input', () => { dirty = true; }));
-  $('opSave').onclick = () => savePanel($('opEnabled').checked);
-  $('opEnabled').onchange = async () => {
-    const on = $('opEnabled').checked;
-    if (on && !confirm('Turn auto-offer ON?\n\nEvery new ' + (state.panel ? state.panel.categoryLabel : '') + ' request will automatically get your offer:\n' +
-      `${$('opPrice').value} ${$('opCurrency').value} x${$('opQty').value}, delivery ${DELIVERY_LABEL($('opDelivery').value)}.`)) {
-      setEnabledUi(false); return;
-    }
-    setEnabledUi(on);
-    await savePanel(on);
-  };
 
   function offerBadge(o) {
     const b = el('span', 'offer ' + (o.ok ? 'ok' : 'bad'), o.ok ? 'OFFER SENT ✓' : 'OFFER FAILED');

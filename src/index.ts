@@ -13,11 +13,14 @@ import { WebServer } from './server.js';
 import {
   CURRENCIES,
   DELIVERY_TIMES,
+  MAX_MESSAGE_LENGTH,
+  OFFER_CATEGORIES,
   OfferSender,
-  loadOfferSettings,
-  matchBoostingRequest,
-  saveOfferSettings,
+  loadCategorySettings,
+  parseBoostingRequest,
+  saveCategorySettings,
   validateOfferSettings,
+  type CategorySettings,
   type OfferConfig,
   type OfferResult,
   type OfferSettings,
@@ -167,6 +170,30 @@ function describeOffer(o: OfferConfig): string {
   return `${o.priceAmount} ${o.currency} x${o.quantity}, delivery ${o.deliveryTime}, message "${o.message}"`;
 }
 
+const categoryLabel = (id: string) => OFFER_CATEGORIES.find((c) => c.id === id)?.label ?? `category ${id}`;
+
+/** The offer to send for one category: the game from .env plus that category's page settings. */
+function offerConfigFor(base: OfferConfig, categoryId: string, s: OfferSettings): OfferConfig {
+  const c: OfferConfig = { ...base, boostingCategoryId: categoryId };
+  applySettings(c, s);
+  return c;
+}
+
+/**
+ * Settings for every category on the page. Missing categories start OFF with the 🔥 Pirate Shop
+ * values (or .env defaults) and an empty message, so nothing is sent until you fill one in.
+ */
+function completeCategorySettings(saved: CategorySettings, fallback: OfferSettings): CategorySettings {
+  const pirate = saved['6'] ?? fallback;
+  const out: CategorySettings = {};
+  for (const { id } of OFFER_CATEGORIES) {
+    let s = saved[id] ?? (id === '6' ? pirate : { ...pirate, enabled: false, message: '' });
+    if (s.enabled && !validateOfferSettings(s).ok) s = { ...s, enabled: false };
+    out[id] = s;
+  }
+  return out;
+}
+
 function printOfferResult(r: OfferResult): void {
   if (r.ok) {
     out(`[OFFER SENT] ${stamp(Date.now())} request=${r.boostingRequestId} HTTP ${r.status}${r.offerId ? ` offerId=${r.offerId}` : ''} RTT ${Math.round(r.rttMs ?? 0)}ms`);
@@ -235,7 +262,8 @@ async function main(): Promise<void> {
     // One-shot: send a single offer to the given boosting request ID, print the result, exit.
     const requestId = process.argv[offerIdx + 1];
     if (!requestId) fail('[OFFER] Usage: --offer <boostingRequestId>');
-    const saved = await loadOfferSettings(cfg.offerSettingsFile);
+    // Uses the 🔥 Pirate Shop Access settings.
+    const saved = (await loadCategorySettings(cfg.offerSettingsFile))?.['6'];
     if (saved) applySettings(cfg.offer, saved);
     const check = validateOfferSettings({ ...cfg.offer, enabled: true });
     if (!check.ok) fail(`[OFFER] Offer settings invalid: ${check.error}`);
@@ -265,27 +293,30 @@ async function main(): Promise<void> {
     return;
   }
 
-  // Offer settings: saved from the page (.state/offer-settings.json), else .env defaults.
-  let settings: OfferSettings = (await loadOfferSettings(cfg.offerSettingsFile)) ?? (await settingsFromEnv(cfg));
-  if (settings.enabled && !validateOfferSettings(settings).ok) settings = { ...settings, enabled: false };
-  applySettings(cfg.offer, settings);
+  // Offer settings per category: saved from the page (.state/offer-settings.json), else .env defaults.
+  const savedSettings = (await loadCategorySettings(cfg.offerSettingsFile)) ?? {};
+  let settings: CategorySettings = completeCategorySettings(savedSettings, await settingsFromEnv(cfg));
   const offers = new OfferSender(http.request, tokens, cfg.baseUrl, cfg.offer, cfg.offerStateFile);
   await offers.loadState();
 
   const web = new WebServer(resolve(ROOT, 'public', 'index.html'), cfg.pollIntervalMs, {
-    get: () => settings,
+    get: () => OFFER_CATEGORIES.map((c) => ({ id: c.id, label: c.label, settings: settings[c.id] })),
     save: async (input) => {
+      const categoryId = String((input as { categoryId?: unknown } | null)?.categoryId ?? '');
+      if (!OFFER_CATEGORIES.some((c) => c.id === categoryId)) return { ok: false, error: 'Unknown category' };
       const r = validateOfferSettings(input);
       if (!r.ok) return r;
-      settings = r.value;
-      applySettings(cfg.offer, settings); // the next offer uses the new values immediately
-      await saveOfferSettings(cfg.offerSettingsFile, settings);
-      out(`[OFFER] ${stamp(Date.now())} settings saved from the page: auto-offer ${settings.enabled ? 'ON' : 'OFF'} - ${describeOffer(cfg.offer)}`);
-      return r;
+      settings = { ...settings, [categoryId]: r.value }; // the next offer uses the new values immediately
+      await saveCategorySettings(cfg.offerSettingsFile, settings);
+      out(
+        `[OFFER] ${stamp(Date.now())} settings saved from the page: ${categoryLabel(categoryId)} auto-offer ${r.value.enabled ? 'ON' : 'OFF'} - ` +
+          describeOffer(offerConfigFor(cfg.offer, categoryId, r.value)),
+      );
+      return { ok: true, value: r.value, categoryId };
     },
-    categoryLabel: '🔥 Pirate Shop Access',
     deliveryTimes: DELIVERY_TIMES,
     currencies: CURRENCIES,
+    maxMessageLength: MAX_MESSAGE_LENGTH,
   }, 200, cfg.dashboardPassword || undefined);
   const loopback = ['127.0.0.1', 'localhost', '::1'].includes(cfg.webHost);
   if (!loopback && cfg.dashboardPassword.length < 12) {
@@ -331,11 +362,14 @@ async function main(): Promise<void> {
         detected++;
         printNotification(item, info.detectedAt, info.rttMs);
         web.pushNew(item, info.detectedAt, info.rttMs);
-        const requestId = settings.enabled ? matchBoostingRequest(item, cfg.offer) : undefined;
-        if (requestId && !offers.hasOffered(requestId)) {
-          out(`[OFFER] Matched category - sending ${describeOffer(cfg.offer)} to request ${requestId}`);
+        const req = parseBoostingRequest(item);
+        const catSettings = req && req.gameId === cfg.offer.gameId ? settings[req.categoryId] : undefined;
+        if (req && catSettings?.enabled && !offers.hasOffered(req.requestId)) {
+          const requestId = req.requestId;
+          const offerCfg = offerConfigFor(cfg.offer, req.categoryId, catSettings);
+          out(`[OFFER] Matched ${categoryLabel(req.categoryId)} - sending ${describeOffer(offerCfg)} to request ${requestId}`);
           // Runs off the polling path: detection of further notifications is never delayed.
-          void offers.send(requestId).then((r) => {
+          void offers.send(requestId, offerCfg).then((r) => {
             if (!r) return;
             if (r.ok) offersSent++;
             else offersFailed++;
@@ -396,11 +430,14 @@ async function main(): Promise<void> {
   out('[MODE] Live monitoring (HTTP polling - Eldorado offers no webhooks/push)');
   out(`[POLL] ${cfg.pollIntervalMs}ms (POLL_INTERVAL_MS; no documented rate limit, auto-slows on HTTP 429)`);
   out(`[WEB] Live page: ${url}${cfg.dashboardPassword ? ' (password login ON)' : ''}`);
-  out(
-    settings.enabled
-      ? `[OFFER] Auto-offer ON for gameId ${cfg.offer.gameId} / boostingCategoryId ${cfg.offer.boostingCategoryId}: ${describeOffer(cfg.offer)} (one offer per request)`
-      : '[OFFER] Auto-offer OFF (switch it on in the Auto-offer panel on the page)',
-  );
+  for (const { id, label } of OFFER_CATEGORIES) {
+    const s = settings[id];
+    out(
+      s.enabled
+        ? `[OFFER] Auto-offer ON for ${label} (gameId ${cfg.offer.gameId} / boostingCategoryId ${id}): ${describeOffer(offerConfigFor(cfg.offer, id, s))} (one offer per request)`
+        : `[OFFER] Auto-offer OFF for ${label} (boostingCategoryId ${id})`,
+    );
+  }
   out('[STATUS] Listening for new notifications... (Ctrl+C to stop)');
   if (cfg.openBrowser) openInBrowser(url);
 

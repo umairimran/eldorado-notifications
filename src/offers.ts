@@ -1,5 +1,5 @@
-// Auto-offer for boosting requests in one category (default: Fortnite 🔥Pirate Shop Access,
-// gameId 16 / boostingCategoryId 6).
+// Auto-offer for Fortnite (gameId 16) boosting requests, with separate settings per category
+// (🔥Pirate Shop Access, Battle Royale Rank Boost, Reload Rank Boost, Battle Pass).
 //
 // Official Seller API operation (swagger tag "BoostingOfferSellerPrivate"):
 //   POST /api/boostingOffers
@@ -42,8 +42,25 @@ export interface OfferResult {
 
 type TokenSource = Pick<TokenManager, 'getToken' | 'refresh' | 'invalidate'>;
 
-/** The boosting request ID if this notification is a new request in the configured category. */
-export function matchBoostingRequest(item: NotificationItem, cfg: Pick<OfferConfig, 'gameId' | 'boostingCategoryId'>): string | undefined {
+export const FORTNITE_GAME_ID = '16';
+
+/**
+ * Fortnite boosting categories that can get auto-offers (boostingCategoryId -> label), in page order.
+ * IDs taken from live BoostingRequestCreated notifications (details.gameCategoryTitle).
+ * "Custom request" (1), Tournament Boost (3), Save the World (5) are deliberately not included.
+ */
+export const OFFER_CATEGORIES: readonly { id: string; label: string }[] = [
+  { id: '6', label: '🔥 Pirate Shop Access' },
+  { id: '0', label: 'Battle Royale Rank Boost' },
+  { id: '2', label: 'Reload Rank Boost' },
+  { id: '4', label: 'Battle Pass' },
+];
+
+/** Eldorado rejects longer offer messages ("Boosting offer message too long. Max length: 500 characters"). */
+export const MAX_MESSAGE_LENGTH = 500;
+
+/** Game + category + boosting request ID if this notification is a new boosting request. */
+export function parseBoostingRequest(item: NotificationItem): { gameId: string; categoryId: string; requestId: string } | undefined {
   const n = item.notification as
     | { event?: unknown; details?: { detailsId?: unknown; gameId?: unknown } | null; customNotificationData?: { gameId?: unknown; boostingCategoryId?: unknown } | null }
     | null
@@ -51,9 +68,15 @@ export function matchBoostingRequest(item: NotificationItem, cfg: Pick<OfferConf
   if (!n || n.event !== 'BoostingRequestCreated') return undefined;
   const gameId = String(n.customNotificationData?.gameId ?? n.details?.gameId ?? '');
   const categoryId = String(n.customNotificationData?.boostingCategoryId ?? '');
-  if (gameId !== cfg.gameId || categoryId !== cfg.boostingCategoryId) return undefined;
   const id = n.details?.detailsId;
-  return typeof id === 'string' && id.length > 0 ? id : undefined;
+  if (typeof id !== 'string' || id.length === 0 || !categoryId) return undefined;
+  return { gameId, categoryId, requestId: id };
+}
+
+/** The boosting request ID if this notification is a new request in the configured category. */
+export function matchBoostingRequest(item: NotificationItem, cfg: Pick<OfferConfig, 'gameId' | 'boostingCategoryId'>): string | undefined {
+  const r = parseBoostingRequest(item);
+  return r && r.gameId === cfg.gameId && r.categoryId === cfg.boostingCategoryId ? r.requestId : undefined;
 }
 
 export function buildOfferBody(boostingRequestId: string, cfg: OfferConfig): string {
@@ -113,23 +136,48 @@ export function validateOfferSettings(input: unknown): ValidationResult {
   if (!Number.isInteger(quantity) || quantity < 1 || quantity > 1_000_000) return { ok: false, error: 'Quantity must be a whole number of at least 1' };
   if (!Number.isInteger(minQuantity) || minQuantity < 1 || minQuantity > quantity) return { ok: false, error: 'Min quantity must be at least 1 and not more than quantity' };
   if (!(DELIVERY_TIMES as readonly string[]).includes(deliveryTime)) return { ok: false, error: 'Unknown delivery time' };
-  if (!message) return { ok: false, error: 'Message cannot be empty' };
-  if (message.length > 1000) return { ok: false, error: 'Message is too long (max 1000 characters)' };
+  // A category that is OFF may be saved with an empty message (new categories start that way).
+  if (!message && enabled) return { ok: false, error: 'Message cannot be empty' };
+  if (message.length > MAX_MESSAGE_LENGTH) {
+    return { ok: false, error: `Message is too long: ${message.length} characters (Eldorado allows max ${MAX_MESSAGE_LENGTH})` };
+  }
   return { ok: true, value: { enabled, priceAmount, currency, quantity, minQuantity, deliveryTime, message } };
 }
 
-export async function loadOfferSettings(path: string): Promise<OfferSettings | undefined> {
+/** Settings per boostingCategoryId. */
+export type CategorySettings = Record<string, OfferSettings>;
+
+/**
+ * Reads .state/offer-settings.json. New format: { categories: { "<categoryId>": settings } }.
+ * Old format (one settings object) is read as the 🔥 Pirate Shop Access (6) settings.
+ * Unknown categories and invalid entries are dropped.
+ */
+export async function loadCategorySettings(path: string): Promise<CategorySettings | undefined> {
+  let raw: unknown;
   try {
-    const r = validateOfferSettings(JSON.parse(await readFile(path, 'utf8')));
-    return r.ok ? r.value : undefined;
+    raw = JSON.parse(await readFile(path, 'utf8'));
   } catch {
     return undefined;
   }
+  const known = new Set(OFFER_CATEGORIES.map((c) => c.id));
+  const out: CategorySettings = {};
+  const cats = (raw as { categories?: unknown } | null)?.categories;
+  if (cats && typeof cats === 'object') {
+    for (const [id, v] of Object.entries(cats as Record<string, unknown>)) {
+      if (!known.has(id)) continue;
+      const r = validateOfferSettings(v);
+      if (r.ok) out[id] = r.value;
+    }
+  } else {
+    const r = validateOfferSettings(raw);
+    if (r.ok) out['6'] = r.value;
+  }
+  return out;
 }
 
-export async function saveOfferSettings(path: string, s: OfferSettings): Promise<void> {
+export async function saveCategorySettings(path: string, s: CategorySettings): Promise<void> {
   await mkdir(dirname(path), { recursive: true });
-  await writeFile(`${path}.tmp`, JSON.stringify(s, null, 2));
+  await writeFile(`${path}.tmp`, JSON.stringify({ categories: s }, null, 2));
   await rename(`${path}.tmp`, path);
 }
 
@@ -168,12 +216,12 @@ export class OfferSender {
    * Retries only on HTTP 429 / 5xx responses (the server answered, so no duplicate risk from a lost
    * response is introduced beyond what Eldorado itself rejects); 4xx errors are reported, not retried.
    */
-  async send(boostingRequestId: string): Promise<OfferResult | undefined> {
+  async send(boostingRequestId: string, cfg: OfferConfig = this.cfg): Promise<OfferResult | undefined> {
     if (this.offered.has(boostingRequestId)) return undefined;
     this.offered.add(boostingRequestId); // claim first: concurrent calls cannot double-send
     void this.persist();
 
-    const body = buildOfferBody(boostingRequestId, this.cfg);
+    const body = buildOfferBody(boostingRequestId, cfg);
     let attempts = 0;
     for (;;) {
       attempts++;

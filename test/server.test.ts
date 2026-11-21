@@ -6,11 +6,11 @@ import type { OfferSettings } from '../src/offers.js';
 
 const settings: OfferSettings = { enabled: false, priceAmount: 20, currency: 'USD', quantity: 1, minQuantity: 1, deliveryTime: 'Day1', message: 'hi' };
 const panel: OfferPanel = {
-  get: () => settings,
-  save: async () => ({ ok: true, value: settings }),
-  categoryLabel: 'x',
+  get: () => [{ id: '6', label: 'x', settings }],
+  save: async () => ({ ok: true, value: settings, categoryId: '6' }),
   deliveryTimes: ['Day1'],
   currencies: ['USD'],
+  maxMessageLength: 500,
 };
 
 async function withServer(password: string | undefined, fn: (base: string) => Promise<void>) {

@@ -2,7 +2,20 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { TokenManager } from '../src/auth.js';
 import type { HttpClient, HttpRequest } from '../src/http.js';
-import { OfferSender, buildOfferBody, matchBoostingRequest, validateOfferSettings, type OfferConfig } from '../src/offers.js';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import {
+  OFFER_CATEGORIES,
+  OfferSender,
+  buildOfferBody,
+  loadCategorySettings,
+  matchBoostingRequest,
+  parseBoostingRequest,
+  saveCategorySettings,
+  validateOfferSettings,
+  type OfferConfig,
+} from '../src/offers.js';
 import type { NotificationItem } from '../src/notifications.js';
 
 const cfg: OfferConfig = {
@@ -101,6 +114,57 @@ test('page settings are validated before they are used', () => {
   assert.equal(validateOfferSettings({ ...good, deliveryTime: 'Day999' }).ok, false);
   assert.equal(validateOfferSettings({ ...good, message: '   ' }).ok, false);
   assert.equal(validateOfferSettings({ ...good, enabled: 'yes' }).ok && (validateOfferSettings({ ...good, enabled: 'yes' }) as { value: { enabled: boolean } }).value.enabled, false);
+});
+
+test('parses game, category and request ID from any boosting request', () => {
+  assert.deepEqual(parseBoostingRequest(boosting('req-1', '0')), { gameId: '16', categoryId: '0', requestId: 'req-1' });
+  assert.deepEqual(parseBoostingRequest(boosting('req-2', '2')), { gameId: '16', categoryId: '2', requestId: 'req-2' });
+  assert.equal(parseBoostingRequest(boosting('req-3', '6', '16', 'OrderCreated')), undefined);
+});
+
+test('auto-offer categories: Pirate Shop, Battle Royale, Reload, Battle Pass - never Custom request', () => {
+  assert.deepEqual(OFFER_CATEGORIES.map((c) => c.id), ['6', '0', '2', '4']);
+  assert.ok(!OFFER_CATEGORIES.some((c) => c.id === '1'));
+});
+
+test('message: max 500 characters (Eldorado limit); may be empty only while OFF', () => {
+  const base = { priceAmount: 20, currency: 'USD', quantity: 1, minQuantity: 1, deliveryTime: 'Day1' };
+  assert.equal(validateOfferSettings({ ...base, enabled: true, message: 'x'.repeat(500) }).ok, true);
+  assert.equal(validateOfferSettings({ ...base, enabled: true, message: 'x'.repeat(501) }).ok, false);
+  assert.equal(validateOfferSettings({ ...base, enabled: false, message: '' }).ok, true);
+  assert.equal(validateOfferSettings({ ...base, enabled: true, message: '' }).ok, false);
+});
+
+test('settings file: old single-object format becomes Pirate Shop; new format round-trips per category', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'eldo-'));
+  try {
+    const file = join(dir, 'offer-settings.json');
+    const s = { enabled: true, priceAmount: 20, currency: 'USD', quantity: 1, minQuantity: 1, deliveryTime: 'Hour5', message: 'hi' };
+    await writeFile(file, JSON.stringify(s));
+    assert.deepEqual(await loadCategorySettings(file), { '6': s });
+
+    const all = { '6': s, '0': { ...s, priceAmount: 35, message: 'rank' }, '2': { ...s, enabled: false, message: '' } };
+    await saveCategorySettings(file, all);
+    assert.ok(JSON.parse(await readFile(file, 'utf8')).categories);
+    assert.deepEqual(await loadCategorySettings(file), all);
+
+    await writeFile(file, JSON.stringify({ categories: { ...all, '1': s } })); // Custom request is ignored
+    assert.equal((await loadCategorySettings(file))!['1'], undefined);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test('offers use the settings of the category they are sent for', async () => {
+  const { sender, requests, tokens } = setup([201]);
+  try {
+    await sender.send('req-br', { ...cfg, boostingCategoryId: '0', priceAmount: 35, message: 'rank boost' });
+    const body = JSON.parse(requests.find((r) => r.url.endsWith('/api/boostingOffers'))!.body!);
+    assert.equal(body.details.pricing.pricePerUnit.amount, 35);
+    assert.equal(body.details.message, 'rank boost');
+  } finally {
+    tokens.stop();
+  }
 });
 
 test('429 / 5xx are retried at most 3 attempts', async () => {

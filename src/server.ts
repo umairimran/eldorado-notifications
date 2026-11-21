@@ -18,13 +18,20 @@ export interface FeedEntry {
   offer?: { ok: boolean; status: number; error?: string; at: number };
 }
 
+export interface OfferCategoryView {
+  id: string;
+  label: string;
+  settings: OfferSettings;
+}
+
 export interface OfferPanel {
-  get(): OfferSettings;
-  /** Validate + apply + persist. Returns an error message for the page on failure. */
-  save(input: unknown): Promise<{ ok: true; value: OfferSettings } | { ok: false; error: string }>;
-  categoryLabel: string;
+  /** One entry per category that can get auto-offers, in page order. */
+  get(): OfferCategoryView[];
+  /** Validate + apply + persist one category (input.categoryId). Returns an error message for the page on failure. */
+  save(input: unknown): Promise<{ ok: true; value: OfferSettings; categoryId: string } | { ok: false; error: string }>;
   deliveryTimes: readonly string[];
   currencies: readonly string[];
+  maxMessageLength: number;
 }
 
 export interface LiveStats {
@@ -171,10 +178,10 @@ export class WebServer {
 
   private panelState() {
     return {
-      settings: this.panel.get(),
-      categoryLabel: this.panel.categoryLabel,
+      categories: this.panel.get(),
       deliveryTimes: this.panel.deliveryTimes,
       currencies: this.panel.currencies,
+      maxMessageLength: this.panel.maxMessageLength,
     };
   }
 
@@ -223,7 +230,7 @@ export class WebServer {
       return;
     }
     this.broadcast('offerPanel', this.panelState());
-    reply(res, 200, { ok: true, settings: r.value });
+    reply(res, 200, { ok: true, settings: r.value, categoryId: r.categoryId });
   }
 
   // ---- login ------------------------------------------------------------------------------
