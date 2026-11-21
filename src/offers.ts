@@ -1,5 +1,5 @@
 // Auto-offer for Fortnite (gameId 16) boosting requests, with separate settings per category
-// (🔥Pirate Shop Access, Battle Royale Rank Boost, Reload Rank Boost, Battle Pass).
+// (every Fortnite boosting category except Custom request).
 //
 // Official Seller API operation (swagger tag "BoostingOfferSellerPrivate"):
 //   POST /api/boostingOffers
@@ -47,13 +47,16 @@ export const FORTNITE_GAME_ID = '16';
 /**
  * Fortnite boosting categories that can get auto-offers (boostingCategoryId -> label), in page order.
  * IDs taken from live BoostingRequestCreated notifications (details.gameCategoryTitle).
- * "Custom request" (1), Tournament Boost (3), Save the World (5) are deliberately not included.
+ * "Custom request" (1) is deliberately not included: it never gets an auto-offer.
  */
 export const OFFER_CATEGORIES: readonly { id: string; label: string }[] = [
   { id: '6', label: '🔥 Pirate Shop Access' },
   { id: '0', label: 'Battle Royale Rank Boost' },
   { id: '2', label: 'Reload Rank Boost' },
+  { id: '7', label: 'Coaching' },
+  { id: '3', label: 'Tournament Boost' },
   { id: '4', label: 'Battle Pass' },
+  { id: '5', label: 'Save the World' },
 ];
 
 /** Eldorado rejects longer offer messages ("Boosting offer message too long. Max length: 500 characters"). */

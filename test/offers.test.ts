@@ -122,8 +122,8 @@ test('parses game, category and request ID from any boosting request', () => {
   assert.equal(parseBoostingRequest(boosting('req-3', '6', '16', 'OrderCreated')), undefined);
 });
 
-test('auto-offer categories: Pirate Shop, Battle Royale, Reload, Battle Pass - never Custom request', () => {
-  assert.deepEqual(OFFER_CATEGORIES.map((c) => c.id), ['6', '0', '2', '4']);
+test('auto-offer categories: every Fortnite boosting category except Custom request', () => {
+  assert.deepEqual(OFFER_CATEGORIES.map((c) => c.id), ['6', '0', '2', '7', '3', '4', '5']);
   assert.ok(!OFFER_CATEGORIES.some((c) => c.id === '1'));
 });
 
