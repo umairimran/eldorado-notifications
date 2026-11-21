@@ -1,0 +1,607 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Eldorado Notifications</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23f5b82e'/%3E%3Cpath d='M16 7a6 6 0 0 0-6 6v4l-2 3v1h16v-1l-2-3v-4a6 6 0 0 0-6-6zm-2.5 15a2.5 2.5 0 0 0 5 0z' fill='%23161309'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #0b0d12;
+    --bg-2: #11141b;
+    --card: #151922;
+    --card-hi: #1a1f2a;
+    --line: #232a37;
+    --text: #e8ebf1;
+    --muted: #8b94a7;
+    --faint: #5d667a;
+    --gold: #f5b82e;
+    --green: #34d399;
+    --amber: #fbbf24;
+    --blue: #60a5fa;
+    --red: #f87171;
+    --violet: #a78bfa;
+    --radius: 14px;
+    --mono: ui-monospace, "Cascadia Mono", "SF Mono", Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: radial-gradient(1200px 600px at 10% -10%, #1b1a12 0%, transparent 60%), var(--bg);
+    color: var(--text);
+    font: 14px/1.45 "Segoe UI Variable", "Segoe UI", Inter, system-ui, -apple-system, sans-serif;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 0 16px 64px; }
+
+  /* Top bar */
+  header {
+    position: sticky; top: 0; z-index: 10;
+    backdrop-filter: blur(14px);
+    background: color-mix(in srgb, var(--bg) 80%, transparent);
+    border-bottom: 1px solid var(--line);
+  }
+  .bar { max-width: 920px; margin: 0 auto; padding: 14px 16px; display: flex; align-items: center; gap: 12px; }
+  .logo {
+    width: 34px; height: 34px; border-radius: 10px; flex: none;
+    background: linear-gradient(135deg, #ffd36b, var(--gold) 55%, #d9930f);
+    display: grid; place-items: center; box-shadow: 0 6px 20px -6px rgba(245,184,46,.55);
+  }
+  .logo svg { width: 18px; height: 18px; }
+  h1 { font-size: 16px; font-weight: 650; margin: 0; letter-spacing: .1px; }
+  .sub { color: var(--muted); font-size: 12px; }
+  .spacer { flex: 1; }
+  .pill {
+    display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 999px;
+    border: 1px solid var(--line); background: var(--bg-2); font-size: 12px; font-weight: 600; white-space: nowrap;
+  }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--faint); position: relative; }
+  .pill.live .dot { background: var(--green); }
+  .pill.live .dot::after {
+    content: ""; position: absolute; inset: -4px; border-radius: 50%; border: 2px solid var(--green);
+    animation: ping 1.6s cubic-bezier(0,0,.2,1) infinite;
+  }
+  .pill.retrying .dot { background: var(--amber); }
+  .pill.offline .dot { background: var(--red); }
+  @keyframes ping { 0% { transform: scale(.6); opacity: .9; } 100% { transform: scale(1.8); opacity: 0; } }
+  .iconbtn {
+    width: 34px; height: 34px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg-2);
+    color: var(--muted); display: grid; place-items: center; cursor: pointer; transition: .15s;
+  }
+  .iconbtn:hover { color: var(--text); border-color: #334; }
+  .iconbtn.on { color: var(--gold); border-color: rgba(245,184,46,.45); background: rgba(245,184,46,.08); }
+  .iconbtn svg { width: 17px; height: 17px; }
+
+  /* Stats */
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 20px 0 8px; }
+  .stat { background: var(--bg-2); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
+  .stat .k { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .6px; font-weight: 600; }
+  .stat .v { font-size: 20px; font-weight: 650; margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .stat .v small { font-size: 12px; color: var(--muted); font-weight: 500; margin-left: 2px; }
+  .statusline { color: var(--faint); font-size: 12px; margin: 6px 2px 18px; min-height: 18px; font-variant-numeric: tabular-nums; }
+  .statusline.warn { color: var(--amber); }
+
+  /* Feed */
+  .section { display: flex; align-items: center; gap: 10px; margin: 22px 2px 10px; color: var(--muted); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .7px; }
+  .section::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+  .count { background: var(--bg-2); border: 1px solid var(--line); border-radius: 999px; padding: 1px 8px; font-size: 11px; color: var(--muted); }
+  .feed { display: flex; flex-direction: column; gap: 10px; }
+
+  .card {
+    position: relative; display: grid; grid-template-columns: 44px 1fr auto; gap: 14px; align-items: start;
+    background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px 14px 14px;
+    overflow: hidden;
+  }
+  .card::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--accent, var(--faint)); }
+  .card.old { opacity: .62; }
+  .card.old:hover { opacity: 1; }
+  .card.fresh { animation: arrive .7s cubic-bezier(.2,.9,.3,1.2), glow 2.6s ease-out; border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); }
+  @keyframes arrive { from { transform: translateY(-14px) scale(.98); opacity: 0; } to { transform: none; opacity: 1; } }
+  @keyframes glow { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 60%, transparent), 0 0 40px -6px var(--accent); } 100% { box-shadow: 0 0 0 0 transparent; } }
+
+  .ico {
+    width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; font-size: 20px;
+    background: color-mix(in srgb, var(--accent, var(--faint)) 14%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent, var(--faint)) 30%, transparent);
+  }
+  .title { font-weight: 650; font-size: 15px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .badge { font-size: 10.5px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; padding: 2px 7px; border-radius: 6px; color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); }
+  .offer { font-size: 10.5px; font-weight: 800; letter-spacing: .4px; padding: 2px 8px; border-radius: 6px; }
+  .offer.ok { background: rgba(52,211,153,.16); color: var(--green); border: 1px solid rgba(52,211,153,.4); }
+  .offer.bad { background: rgba(248,113,113,.14); color: var(--red); border: 1px solid rgba(248,113,113,.4); }
+  .offer.pending { background: rgba(245,184,46,.12); color: var(--gold); border: 1px solid rgba(245,184,46,.35); }
+  .newtag { font-size: 10.5px; font-weight: 800; letter-spacing: .6px; padding: 2px 7px; border-radius: 6px; background: var(--gold); color: #1a1405; }
+  .desc { color: #c9cfdb; margin-top: 3px; word-break: break-word; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .chip { font-size: 12px; color: var(--muted); background: var(--bg-2); border: 1px solid var(--line); border-radius: 7px; padding: 2px 8px; }
+  .chip b { color: var(--text); font-weight: 600; }
+  .chip.price b { color: var(--green); }
+  .when { text-align: right; white-space: nowrap; }
+  .ago { font-weight: 600; font-size: 13px; font-variant-numeric: tabular-nums; }
+  .abs { color: var(--faint); font-size: 11.5px; margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .timing { grid-column: 2 / -1; display: flex; flex-wrap: wrap; gap: 14px; color: var(--faint); font-size: 11.5px; font-family: var(--mono); margin-top: -4px; }
+  .timing span b { color: var(--muted); font-weight: 500; }
+  details { grid-column: 2 / -1; margin-top: -4px; }
+  summary { cursor: pointer; color: var(--faint); font-size: 12px; user-select: none; list-style: none; }
+  summary::-webkit-details-marker { display: none; }
+  summary:hover { color: var(--muted); }
+  details[open] summary { color: var(--muted); }
+  pre {
+    margin: 8px 0 0; background: #0a0c10; border: 1px solid var(--line); border-radius: 10px; padding: 12px;
+    font: 12px/1.5 var(--mono); color: #b8c1d3; overflow: auto; max-height: 360px;
+  }
+  a.open { color: var(--gold); text-decoration: none; font-size: 12px; font-weight: 600; }
+  a.open:hover { text-decoration: underline; }
+
+  .composer { background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; margin-bottom: 6px; }
+  .composer .head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .composer .head b { font-size: 13px; }
+  .composer .head span { color: var(--faint); font-size: 12px; }
+  .composer textarea {
+    width: 100%; min-height: 70px; resize: vertical; background: #0a0c10; color: var(--text);
+    border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; font: inherit; line-height: 1.45; outline: none;
+  }
+  .composer textarea:focus { border-color: rgba(245,184,46,.55); box-shadow: 0 0 0 3px rgba(245,184,46,.12); }
+  .composer .row { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+  .composer .hint { color: var(--faint); font-size: 12px; flex: 1; }
+  .btn {
+    border: 1px solid var(--line); background: var(--card-hi); color: var(--text); border-radius: 9px;
+    padding: 7px 14px; font: 600 13px/1 inherit; cursor: pointer; transition: .15s; white-space: nowrap;
+  }
+  .btn:hover { border-color: #3a4456; }
+  .btn.gold { background: linear-gradient(135deg, #ffd36b, var(--gold)); color: #1a1405; border-color: transparent; }
+  .btn.gold:hover { filter: brightness(1.06); }
+  .btn:disabled { opacity: .55; cursor: default; }
+  .btn.done { background: rgba(52,211,153,.14); color: var(--green); border-color: rgba(52,211,153,.4); }
+  .btn.err { background: rgba(248,113,113,.12); color: var(--red); border-color: rgba(248,113,113,.4); }
+  .saved { color: var(--green); font-size: 12px; font-weight: 600; opacity: 0; transition: opacity .3s; }
+  .saved.show { opacity: 1; }
+  .grid { display: grid; grid-template-columns: 1.1fr .9fr .8fr .8fr 1.2fr; gap: 10px; margin-bottom: 10px; }
+  .field { display: flex; flex-direction: column; gap: 4px; }
+  .field > span { color: var(--muted); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; }
+  .field input, .field select {
+    background: #0a0c10; color: var(--text); border: 1px solid var(--line); border-radius: 9px;
+    padding: 8px 10px; font: inherit; outline: none; min-width: 0; width: 100%;
+  }
+  .field input:focus, .field select:focus { border-color: rgba(245,184,46,.55); box-shadow: 0 0 0 3px rgba(245,184,46,.12); }
+  .field.bad input, .field.bad select, .field.bad textarea { border-color: var(--red); }
+  .composer .hint.err { color: var(--red); }
+  .switch { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; user-select: none; }
+  .switch input { position: absolute; opacity: 0; pointer-events: none; }
+  .switch .track { width: 42px; height: 24px; border-radius: 999px; background: #2a3140; position: relative; transition: .2s; border: 1px solid var(--line); }
+  .switch .knob { position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 50%; background: #9aa3b5; transition: .2s; }
+  .switch input:checked + .track { background: rgba(52,211,153,.25); border-color: rgba(52,211,153,.6); }
+  .switch input:checked + .track .knob { left: 20px; background: var(--green); }
+  .switch input:focus-visible + .track { box-shadow: 0 0 0 3px rgba(245,184,46,.25); }
+  .switchLabel { font-size: 12px; font-weight: 800; letter-spacing: .5px; color: var(--muted); min-width: 26px; }
+  .switchLabel.on { color: var(--green); }
+  .composer.live { border-color: rgba(52,211,153,.35); }
+  @media (max-width: 640px) { .grid { grid-template-columns: 1fr 1fr; } }
+
+  .empty { text-align: center; color: var(--muted); padding: 48px 16px; border: 1px dashed var(--line); border-radius: var(--radius); }
+  .empty .big { font-size: 28px; margin-bottom: 6px; }
+
+  @media (max-width: 640px) {
+    .stats { grid-template-columns: repeat(2, 1fr); }
+    .card { grid-template-columns: 38px 1fr; }
+    .ico { width: 38px; height: 38px; font-size: 18px; }
+    .when { grid-column: 2; text-align: left; display: flex; gap: 8px; align-items: baseline; }
+    .sub { display: none; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="bar">
+    <div class="logo"><svg viewBox="0 0 24 24" fill="#161309"><path d="M12 2a7 7 0 0 0-7 7v4.2L3.3 16a1 1 0 0 0 .9 1.5h15.6a1 1 0 0 0 .9-1.5L19 13.2V9a7 7 0 0 0-7-7zm-3 17a3 3 0 0 0 6 0z"/></svg></div>
+    <div>
+      <h1>Eldorado Notifications</h1>
+      <div class="sub">Seller API · live feed</div>
+    </div>
+    <div class="spacer"></div>
+    <button class="iconbtn on" id="soundBtn" title="Sound on new notification">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4z"/><path id="soundWaves" d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/></svg>
+    </button>
+    <button class="iconbtn" id="desktopBtn" title="Desktop pop-up alerts">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+    </button>
+    <div class="pill" id="pill"><span class="dot"></span><span id="pillText">Connecting…</span></div>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="stats">
+    <div class="stat"><div class="k">New this session</div><div class="v" id="sDetected">0</div></div>
+    <div class="stat"><div class="k">Request RTT</div><div class="v"><span id="sRtt">–</span><small>ms</small></div></div>
+    <div class="stat"><div class="k">Offers sent</div><div class="v"><span id="sOffers">0</span><small id="sOffersFail"></small></div></div>
+    <div class="stat"><div class="k">Poll interval</div><div class="v"><span id="sInterval">–</span><small>ms</small></div></div>
+  </section>
+  <div class="statusline" id="statusline">Waiting for the listener…</div>
+
+  <section class="composer" id="offerPanel" hidden>
+    <div class="head">
+      <b>⚡ Auto-offer</b><span id="opCategory">🔥 Pirate Shop Access</span>
+      <div class="spacer"></div>
+      <span class="saved" id="savedTag">Saved ✓</span>
+      <label class="switch" title="Turn auto-offer on/off">
+        <input type="checkbox" id="opEnabled"><span class="track"><span class="knob"></span></span>
+        <span class="switchLabel" id="opEnabledLabel">OFF</span>
+      </label>
+    </div>
+    <div class="grid">
+      <label class="field"><span>Price</span><input id="opPrice" type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="20"></label>
+      <label class="field"><span>Currency</span><select id="opCurrency"></select></label>
+      <label class="field"><span>Quantity</span><input id="opQty" type="number" min="1" step="1" inputmode="numeric"></label>
+      <label class="field"><span>Min quantity</span><input id="opMinQty" type="number" min="1" step="1" inputmode="numeric"></label>
+      <label class="field"><span>Delivery time</span><select id="opDelivery"></select></label>
+    </div>
+    <label class="field"><span>Message to the buyer</span><textarea id="opMessage" maxlength="1000" placeholder="Hey! I can do this right now…"></textarea></label>
+    <div class="row">
+      <div class="hint" id="opHint">Sent automatically, once per buyer, about 1 second after a new request appears.</div>
+      <button class="btn gold" id="opSave">Save settings</button>
+    </div>
+  </section>
+
+  <div class="section">Live <span class="count" id="liveCount">0</span></div>
+  <div class="feed" id="liveFeed">
+    <div class="empty" id="liveEmpty"><div class="big">👀</div>Watching for new notifications. They'll show up here the moment they're detected.</div>
+  </div>
+
+  <div class="section" id="earlierHead">Earlier <span class="count" id="oldCount">0</span></div>
+  <div class="feed" id="oldFeed"></div>
+</main>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const TYPE_COLOR = { Success: 'var(--green)', ActionRequired: 'var(--amber)', Attention: 'var(--blue)', Error: 'var(--red)', Unknown: 'var(--violet)' };
+  const TYPE_LABEL = { Success: 'Success', ActionRequired: 'Action required', Attention: 'Attention', Error: 'Error', Unknown: 'Info' };
+
+  const state = { seen: new Set(), unseenWhileHidden: 0, sound: true, desktop: false, stats: null, panel: null };
+  try {
+    state.sound = localStorage.getItem('eldo.sound') !== '0';
+    state.desktop = localStorage.getItem('eldo.desktop') === '1' && 'Notification' in window && Notification.permission === 'granted';
+  } catch {}
+
+  function iconFor(ev) {
+    ev = ev || '';
+    if (/^Swap/.test(ev)) return '🔁';
+    if (/Dispute/.test(ev)) return '⚠️';
+    if (/Cancel/.test(ev)) return '✖️';
+    if (/OrderCreated|ItemBought|PaymentCompleted/.test(ev)) return '🛒';
+    if (/Delivered|Received|Completed/.test(ev)) return '✅';
+    if (/Boosting/.test(ev)) return '⚡';
+    if (/Review/.test(ev)) return '⭐';
+    if (/Conversation|Contacted|Chat|Nudge/.test(ev)) return '💬';
+    if (/Warranty/.test(ev)) return '🛡️';
+    if (/Verification|Suspended/.test(ev)) return '🪪';
+    if (/Delivery|Reminder|Extended/.test(ev)) return '⏰';
+    if (/Loyalty|Cashback|Birthday/.test(ev)) return '🎁';
+    if (/Fee/.test(ev)) return '💸';
+    return '🔔';
+  }
+  const human = (s) => (s || 'Notification').replace(/([a-z0-9])([A-Z])/g, '$1 $2').replace(/Min(\d+)/, '$1 min').replace(/Hour(\d+)/, '$1 h');
+  const pad = (n, w = 2) => String(n).padStart(w, '0');
+  const stamp = (ms) => { const d = new Date(ms); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}.${pad(d.getMilliseconds(),3)}`; };
+  const parseDate = (s) => { if (!s) return NaN; return Date.parse(String(s).replace(/(\.\d{3})\d+/, '$1')); };
+  function ago(ms) {
+    const s = Math.max(0, Math.round((Date.now() - ms) / 1000));
+    if (s < 5) return 'just now';
+    if (s < 60) return s + 's ago';
+    const m = Math.floor(s / 60); if (m < 60) return m + 'm ago';
+    const h = Math.floor(m / 60); if (h < 24) return h + 'h ago';
+    return Math.floor(h / 24) + 'd ago';
+  }
+  const fmtMs = (ms) => ms == null ? '–' : ms < 1000 ? Math.round(ms) + 'ms' : (ms / 1000).toFixed(ms < 10000 ? 2 : 1) + 's';
+
+  function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+  function chip(label, value, cls) { const c = el('span', 'chip' + (cls ? ' ' + cls : '')); c.append(label + ' '); c.append(el('b', null, value)); return c; }
+
+  function view(entry) {
+    const n = entry.item.notification || null;
+    const c = entry.item.customNotification || null;
+    const src = n || c || {};
+    const type = src.type || 'Unknown';
+    const date = parseDate(src.notificationDate);
+    const title = n ? human(n.event) : (c && c.subject) || 'Notification';
+    let desc = '';
+    const chips = [];
+    if (n && n.details) {
+      const d = n.details;
+      if (d.gameCategoryTitle) desc = d.gameCategoryTitle;
+      if (d.title) desc = desc ? `${d.title} · ${desc}` : d.title;
+      if (d.buyerUsername) chips.push(['Buyer', d.buyerUsername]);
+      if (d.price && Number(d.price.amount) > 0) chips.push(['Price', `${Number(d.price.amount).toFixed(2)} ${d.price.currency || ''}`.trim(), 'price']);
+      if (n.recipientRole && n.recipientRole !== 'None') chips.push(['As', n.recipientRole]);
+      const cd = n.customNotificationData;
+      if (cd && Array.isArray(cd.requestFields) && cd.requestFields.length) chips.push(['Request', cd.requestFields.join(' · ')]);
+    }
+    if (c && c.text) desc = c.text;
+    const read = (n && n.notificationReadStatus) || (c && c.readStatus);
+    if (read === 'IsUnread') chips.push(['', 'Unread']);
+    let link = c && c.redirectUrl;
+    if (link && link.startsWith('/')) link = 'https://www.eldorado.gg' + link;
+    if (link && !/^https:\/\//.test(link)) link = null;
+    return { type, date, title, desc, chips, link };
+  }
+
+  function card(entry, fresh) {
+    const v = view(entry);
+    const accent = TYPE_COLOR[v.type] || TYPE_COLOR.Unknown;
+    const root = el('article', 'card' + (entry.live ? '' : ' old') + (fresh ? ' fresh' : ''));
+    root.style.setProperty('--accent', accent);
+    root.dataset.date = isNaN(v.date) ? '' : String(v.date);
+
+    root.append(el('div', 'ico', iconFor(entry.item.notification && entry.item.notification.event)));
+
+    const body = el('div');
+    const t = el('div', 'title');
+    t.append(el('span', null, v.title));
+    t.append(el('span', 'badge', TYPE_LABEL[v.type] || v.type));
+    if (entry.live) t.append(el('span', 'newtag', 'NEW'));
+    if (entry.offer) t.append(offerBadge(entry.offer));
+    body.append(t);
+    root.dataset.id = entry.id;
+    if (v.desc) body.append(el('div', 'desc', v.desc));
+    if (v.chips.length || v.link) {
+      const cs = el('div', 'chips');
+      for (const [k, val, cls] of v.chips) cs.append(k ? chip(k, val, cls) : el('span', 'chip', val));
+      if (v.link) { const a = el('a', 'open', 'Open on Eldorado ↗'); a.href = v.link; a.target = '_blank'; a.rel = 'noopener noreferrer'; cs.append(a); }
+      body.append(cs);
+    }
+    root.append(body);
+
+    const when = el('div', 'when');
+    when.append(el('div', 'ago', isNaN(v.date) ? '' : ago(v.date)));
+    when.append(el('div', 'abs', isNaN(v.date) ? '' : new Date(v.date).toLocaleString()));
+    root.append(when);
+
+    if (entry.live) {
+      const tm = el('div', 'timing');
+      const add = (k, val) => { const s = el('span'); s.append(k + ' '); s.append(el('b', null, val)); tm.append(s); };
+      add('detected', stamp(entry.detectedAt));
+      add('rtt', fmtMs(entry.rttMs));
+      if (entry.eventAgeMs != null) add('event age', fmtMs(entry.eventAgeMs));
+      root.append(tm);
+    }
+
+    const det = el('details');
+    det.append(el('summary', null, 'Full payload · ' + entry.id));
+    det.addEventListener('toggle', () => { if (det.open && !det.querySelector('pre')) det.append(el('pre', null, JSON.stringify(entry.item, null, 2))); }, { once: false });
+    root.append(det);
+    return root;
+  }
+
+  // ---- auto-offer settings panel
+  const DELIVERY_LABEL = (v) => {
+    const m = /^(Minute|Hour|Day)(\d+)$/.exec(v);
+    if (!m) return v;
+    const n = Number(m[2]); const u = m[1] === 'Minute' ? 'min' : m[1] === 'Hour' ? (n === 1 ? 'hour' : 'hours') : (n === 1 ? 'day' : 'days');
+    return `${n} ${u}`;
+  };
+  let panelBuilt = false;
+  let dirty = false;
+
+  async function postJson(path, body) {
+    try {
+      const r = await fetch(path, { method: 'POST', headers: { 'content-type': 'application/json', 'x-eldo-page': '1' }, body: JSON.stringify(body) });
+      let j = {};
+      try { j = await r.json(); } catch {}
+      return { ok: r.ok && j.ok !== false, ...j };
+    } catch (e) { return { ok: false, error: 'listener not reachable' }; }
+  }
+
+  function setEnabledUi(on) {
+    $('opEnabled').checked = on;
+    $('opEnabledLabel').textContent = on ? 'ON' : 'OFF';
+    $('opEnabledLabel').classList.toggle('on', on);
+    $('offerPanel').classList.toggle('live', on);
+  }
+
+  function fillPanel(p) {
+    state.panel = p;
+    const panel = $('offerPanel');
+    panel.hidden = false;
+    $('opCategory').textContent = 'only for ' + p.categoryLabel;
+    if (!panelBuilt) {
+      $('opCurrency').replaceChildren(...p.currencies.map((c) => { const o = el('option', null, c); o.value = c; return o; }));
+      $('opDelivery').replaceChildren(...p.deliveryTimes.map((d) => { const o = el('option', null, DELIVERY_LABEL(d)); o.value = d; return o; }));
+      panelBuilt = true;
+    }
+    const s = p.settings;
+    setEnabledUi(!!s.enabled);
+    if (dirty) return; // never overwrite what you are typing
+    $('opPrice').value = s.priceAmount != null && isFinite(s.priceAmount) ? s.priceAmount : '';
+    $('opCurrency').value = s.currency || 'USD';
+    $('opQty').value = s.quantity ?? 1;
+    $('opMinQty').value = s.minQuantity ?? 1;
+    $('opDelivery').value = s.deliveryTime || 'Day1';
+    $('opMessage').value = s.message || '';
+  }
+
+  function readPanel(enabled) {
+    return {
+      enabled,
+      priceAmount: Number($('opPrice').value),
+      currency: $('opCurrency').value,
+      quantity: Number($('opQty').value),
+      minQuantity: Number($('opMinQty').value),
+      deliveryTime: $('opDelivery').value,
+      message: $('opMessage').value,
+    };
+  }
+
+  function flash(text, ok) {
+    const tag = $('savedTag');
+    tag.textContent = text; tag.style.color = ok ? '' : 'var(--red)';
+    tag.classList.add('show'); clearTimeout(flash.t); flash.t = setTimeout(() => tag.classList.remove('show'), 2400);
+  }
+
+  async function savePanel(enabled) {
+    const hint = $('opHint');
+    $('opSave').disabled = true;
+    const r = await postJson('/api/offer-settings', readPanel(enabled));
+    $('opSave').disabled = false;
+    if (!r.ok) {
+      hint.textContent = '⚠ ' + (r.error || 'Could not save'); hint.classList.add('err');
+      setEnabledUi(!!(state.panel && state.panel.settings.enabled));
+      flash('Not saved', false);
+      return false;
+    }
+    dirty = false;
+    hint.classList.remove('err');
+    hint.textContent = r.settings.enabled
+      ? `Live: every new ${state.panel ? state.panel.categoryLabel : ''} buyer gets this offer once, about 1 second after the request.`
+      : 'Auto-offer is OFF. Nothing is sent until you switch it on.';
+    flash(r.settings.enabled ? 'Saved ✓ - ON' : 'Saved ✓', true);
+    return true;
+  }
+
+  ['opPrice', 'opCurrency', 'opQty', 'opMinQty', 'opDelivery', 'opMessage'].forEach((id) => $(id).addEventListener('input', () => { dirty = true; }));
+  $('opSave').onclick = () => savePanel($('opEnabled').checked);
+  $('opEnabled').onchange = async () => {
+    const on = $('opEnabled').checked;
+    if (on && !confirm('Turn auto-offer ON?\n\nEvery new ' + (state.panel ? state.panel.categoryLabel : '') + ' request will automatically get your offer:\n' +
+      `${$('opPrice').value} ${$('opCurrency').value} x${$('opQty').value}, delivery ${DELIVERY_LABEL($('opDelivery').value)}.`)) {
+      setEnabledUi(false); return;
+    }
+    setEnabledUi(on);
+    await savePanel(on);
+  };
+
+  function offerBadge(o) {
+    const b = el('span', 'offer ' + (o.ok ? 'ok' : 'bad'), o.ok ? 'OFFER SENT ✓' : 'OFFER FAILED');
+    if (!o.ok) b.title = `HTTP ${o.status || 'network'}: ${o.error || ''}`;
+    return b;
+  }
+
+  function counts() {
+    const live = $('liveFeed').querySelectorAll('.card').length;
+    const old = $('oldFeed').querySelectorAll('.card').length;
+    $('liveCount').textContent = live;
+    $('oldCount').textContent = old;
+    $('liveEmpty').style.display = live ? 'none' : '';
+    $('earlierHead').style.display = old ? '' : 'none';
+  }
+
+  function render(feed) {
+    $('liveFeed').querySelectorAll('.card').forEach((c) => c.remove());
+    $('oldFeed').replaceChildren();
+    state.seen.clear();
+    for (const e of feed) {
+      state.seen.add(e.id);
+      (e.live ? $('liveFeed') : $('oldFeed')).append(card(e, false));
+    }
+    counts();
+  }
+
+  // ---- alerts
+  let audio;
+  function chime() {
+    if (!state.sound) return;
+    try {
+      audio = audio || new (window.AudioContext || window.webkitAudioContext)();
+      const now = audio.currentTime;
+      [[880, 0], [1320, 0.11]].forEach(([f, dt]) => {
+        const o = audio.createOscillator(), g = audio.createGain();
+        o.type = 'sine'; o.frequency.value = f;
+        g.gain.setValueAtTime(0.0001, now + dt);
+        g.gain.exponentialRampToValueAtTime(0.25, now + dt + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, now + dt + 0.35);
+        o.connect(g).connect(audio.destination); o.start(now + dt); o.stop(now + dt + 0.4);
+      });
+    } catch {}
+  }
+  function desktopAlert(entry) {
+    if (!state.desktop || !('Notification' in window) || Notification.permission !== 'granted') return;
+    const v = view(entry);
+    try {
+      const n = new Notification(v.title, { body: [v.desc, ...v.chips.filter(c => c[0]).map(c => `${c[0]}: ${c[1]}`)].filter(Boolean).join('\n'), tag: entry.id });
+      n.onclick = () => { window.focus(); n.close(); };
+    } catch {}
+  }
+  function bumpTitle() {
+    if (!document.hidden) return;
+    state.unseenWhileHidden++;
+    document.title = `(${state.unseenWhileHidden}) Eldorado Notifications`;
+  }
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) { state.unseenWhileHidden = 0; document.title = 'Eldorado Notifications'; } });
+
+  function syncButtons() {
+    $('soundBtn').classList.toggle('on', state.sound);
+    $('soundWaves').style.display = state.sound ? '' : 'none';
+    $('desktopBtn').classList.toggle('on', state.desktop);
+  }
+  $('soundBtn').onclick = () => { state.sound = !state.sound; try { localStorage.setItem('eldo.sound', state.sound ? '1' : '0'); } catch {} syncButtons(); if (state.sound) chime(); };
+  $('desktopBtn').onclick = async () => {
+    if (!('Notification' in window)) return;
+    if (!state.desktop && Notification.permission !== 'granted') {
+      const p = await Notification.requestPermission();
+      if (p !== 'granted') return;
+    }
+    state.desktop = !state.desktop;
+    try { localStorage.setItem('eldo.desktop', state.desktop ? '1' : '0'); } catch {}
+    syncButtons();
+  };
+  syncButtons();
+
+  // ---- stats
+  function setPill(cls, text) { const p = $('pill'); p.className = 'pill ' + cls; $('pillText').textContent = text; }
+  function applyStats(s) {
+    state.stats = s;
+    $('sDetected').textContent = s.detected;
+    $('sRtt').textContent = s.lastRttMs != null ? Math.round(s.lastRttMs) : '–';
+    $('sOffers').textContent = s.offersSent ?? 0;
+    $('sOffersFail').textContent = s.offersFailed ? ` · ${s.offersFailed} failed` : '';
+    $('sInterval').textContent = s.intervalMs;
+    if (s.status === 'live') setPill('live', 'Live');
+    else if (s.status === 'retrying') setPill('retrying', 'Retrying');
+    else setPill('', 'Starting…');
+    tickStatus();
+  }
+  function tickStatus() {
+    const s = state.stats; const line = $('statusline');
+    if (!s) return;
+    if (s.status === 'retrying' && s.message) { line.className = 'statusline warn'; line.textContent = s.message; return; }
+    line.className = 'statusline';
+    const last = s.lastPollAt ? `last checked ${((Date.now() - s.lastPollAt) / 1000).toFixed(1)}s ago` : 'first check pending';
+    line.textContent = `${s.polls.toLocaleString()} checks · ${last} · ${s.errors} errors`;
+  }
+
+  // ---- live connection
+  function connect() {
+    const es = new EventSource('/events');
+    es.addEventListener('init', (m) => { const d = JSON.parse(m.data); if (d.offerPanel) fillPanel(d.offerPanel); render(d.feed); applyStats(d.stats); });
+    es.addEventListener('offerPanel', (m) => fillPanel(JSON.parse(m.data)));
+    es.addEventListener('stats', (m) => applyStats(JSON.parse(m.data)));
+    es.addEventListener('notification', (m) => {
+      const e = JSON.parse(m.data);
+      if (state.seen.has(e.id)) return;
+      state.seen.add(e.id);
+      $('liveFeed').prepend(card(e, true));
+      counts(); chime(); desktopAlert(e); bumpTitle();
+    });
+    es.addEventListener('offer', (m) => {
+      const { id, offer } = JSON.parse(m.data);
+      const c = document.querySelector(`.card[data-id="${CSS.escape(id)}"] .title`);
+      if (!c) return;
+      c.querySelectorAll('.offer').forEach((x) => x.remove());
+      c.append(offerBadge(offer));
+    });
+    es.onopen = () => { if (!state.stats || state.stats.status !== 'live') setPill('retrying', 'Connecting…'); };
+    es.onerror = () => { setPill('offline', 'Listener offline'); const l = $('statusline'); l.className = 'statusline warn'; l.textContent = 'Lost connection to the local listener. Reconnecting automatically… (is `npm start` still running?)'; };
+  }
+  connect();
+
+  setInterval(() => {
+    for (const c of document.querySelectorAll('.card')) {
+      const d = Number(c.dataset.date); if (!d) continue;
+      const a = c.querySelector('.ago'); if (a) a.textContent = ago(d);
+    }
+    if (state.stats && state.stats.status !== 'retrying') tickStatus();
+  }, 1000);
+})();
+</script>
+</body>
+</html>

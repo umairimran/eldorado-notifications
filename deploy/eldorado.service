@@ -1,0 +1,27 @@
+[Unit]
+Description=Eldorado seller notification listener + auto-offer
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=eldorado
+WorkingDirectory=/opt/eldorado-notifications
+Environment=NODE_ENV=production
+Environment=OPEN_BROWSER=false
+ExecStart=/usr/bin/node dist/src/index.js
+Restart=always
+RestartSec=5
+# Ctrl+C equivalent so it saves state on stop/restart
+KillSignal=SIGINT
+TimeoutStopSec=10
+
+# Hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/opt/eldorado-notifications/.state
+
+[Install]
+WantedBy=multi-user.target

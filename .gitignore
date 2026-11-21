@@ -1,0 +1,28 @@
+# --- secrets: never commit ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+id_*
+*_vps
+*_vps.pub
+
+# --- runtime state (buyer IDs, offers, settings) ---
+.state/
+logs/
+*.log
+
+# --- build / deps ---
+node_modules/
+dist/
+
+# --- packages that contain .env ---
+*.zip
+*.tgz
+
+# --- OS / editor ---
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

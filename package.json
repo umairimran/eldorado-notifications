@@ -1,0 +1,20 @@
+{
+  "name": "eldorado-notifications",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Read-only, low-latency Eldorado.gg Seller API notification listener with a live local web page",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "npm run build && node dist/src/index.js",
+    "verify": "npm run build && node dist/src/index.js --verify",
+    "test": "npm run build && node --test dist/test/"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.6.3"
+  }
+}
